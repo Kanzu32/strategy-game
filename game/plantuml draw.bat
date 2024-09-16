@@ -1,0 +1,1 @@
+goplantuml -recursive -show-aggregations -aggregate-private-members %CD% 1> uml.puml 2>&1

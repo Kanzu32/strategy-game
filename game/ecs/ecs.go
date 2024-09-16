@@ -46,11 +46,6 @@ func (e Entity) String() string {
 	return fmt.Sprintf("Ent #%d v%d ", e.id, e.version)
 }
 
-// func (f *flags) Set(b)      { return b | flag }
-// func (f *flags) Clear(b)    { return b &^ flag }
-// func (f *flags) Toggle(b)   { return b ^ flag }
-// func (f *flags) Has(b) bool { return b&flag != 0 }
-
 // WORLD
 
 type World struct {
@@ -193,7 +188,7 @@ func (pool *ComponentPool[poolType]) EntityCount() int {
 	return len(pool.denseEntities)
 }
 
-func (pool ComponentPool[componentType]) String() string {
+func (pool *ComponentPool[componentType]) String() string {
 	return fmt.Sprintf("Components: %v\nDense ent: %v\nSparse ent:\n%v", pool.denseComponents, pool.denseEntities, pool.sparseEntities.String())
 }
 
