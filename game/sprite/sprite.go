@@ -22,6 +22,14 @@ type Sprite struct {
 	currentFrame     int
 }
 
+func (s *Sprite) Width() int {
+	return s.width
+}
+
+func (s *Sprite) Height() int {
+	return s.height
+}
+
 func timeToFrames(time int) int {
 	f := (float32(time) / 1000.0) * 60
 	return int(f) | 1

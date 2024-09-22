@@ -8,6 +8,7 @@ type TilesetJSON struct {
 	Width         int              `json:"tilewidth"`
 	Height        int              `json:"tileheight"`
 	AnimatedTiles []AnimationsJSON `json:"tiles"`
+	TileCount     int              `jsob:"tilecount"`
 }
 
 type AnimationsJSON struct {

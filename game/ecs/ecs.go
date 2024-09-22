@@ -46,10 +46,18 @@ func (e Entity) String() string {
 	return fmt.Sprintf("Ent #%d v%d ", e.id, e.version)
 }
 
+// SYSTEM
+
+type System interface {
+	Run(frameCount int)
+}
+
 // WORLD
 
 type World struct {
 	pools []AnyPool
+
+	systems []System
 
 	next      uint32   // next available entity ID
 	entities  []Entity // array to mark registred and destroyed entities
@@ -82,6 +90,17 @@ func CreateFlagPool(w *World, pageSize psize.PageSizes) *FlagPool {
 	pool.world = w
 	w.pools = append(w.pools, &pool)
 	return &pool
+}
+
+func AddSystem(w *World, system System) {
+	w.systems = append(w.systems, system)
+}
+
+func (w *World) Update(frameCount int) {
+	fmt.Println("UPDATE!: ", len(w.systems))
+	for _, s := range w.systems {
+		s.Run(frameCount)
+	}
 }
 
 func (w *World) registerNewEntity() (Entity, error) {
@@ -181,6 +200,9 @@ func (pool *ComponentPool[componentType]) Entities() []Entity {
 }
 
 func (pool *ComponentPool[componentType]) Component(entity Entity) (*componentType, error) {
+	if !pool.HasEntity(entity) {
+		return nil, errors.New("Entity is not in the pool")
+	}
 	return &pool.denseComponents[pool.sparseEntities.Get(entity.id)], nil
 }
 

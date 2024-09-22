@@ -4,6 +4,8 @@ import (
 	"strategy-game/components/material"
 	"strategy-game/ecs"
 	"strategy-game/sprite"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type Position struct {
@@ -11,9 +13,8 @@ type Position struct {
 	Y int
 }
 
-type ScreenRender struct {
-	X int
-	Y int
+type ImageRender struct {
+	Options ebiten.DrawImageOptions
 }
 
 type Sprite struct {
@@ -26,4 +27,8 @@ type Material struct {
 
 type OccupiedBy struct {
 	Entity ecs.Entity
+}
+
+type View struct {
+	Img *ebiten.Image
 }

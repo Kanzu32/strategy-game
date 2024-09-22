@@ -3,7 +3,11 @@ package psize
 type PageSizes uint16
 
 const (
-	Page16 PageSizes = 1 << (iota + 4)
+	Page1 PageSizes = 1 << iota
+	Page2
+	Page4
+	Page8
+	Page16
 	Page32
 	Page64
 	Page128
