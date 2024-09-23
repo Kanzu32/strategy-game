@@ -1,7 +1,6 @@
 package systems
 
 import (
-	"fmt"
 	"log"
 	"strategy-game/pools"
 
@@ -11,7 +10,6 @@ import (
 type DrawTilemapSystem struct{}
 
 func (s *DrawTilemapSystem) Run(frameCount int) {
-	fmt.Println("TILES!")
 	ent := pools.ViewPool.Entities()[0]
 	view, err := pools.ViewPool.Component(ent)
 	if err != nil {

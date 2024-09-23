@@ -11,4 +11,5 @@ var MaterialPool *ecs.ComponentPool[c.Material]
 var ViewPool *ecs.ComponentPool[c.View]
 var ImageRenderPool *ecs.ComponentPool[c.ImageRender]
 
+var SolidFlag *ecs.FlagPool
 var TileFlag *ecs.FlagPool

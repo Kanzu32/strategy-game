@@ -76,6 +76,7 @@ func main() {
 	pools.ViewPool = ecs.CreateComponentPool[c.View](w, psize.Page1)
 	pools.ImageRenderPool = ecs.CreateComponentPool[c.ImageRender](w, psize.Page1024)
 
+	pools.SolidFlag = ecs.CreateFlagPool(w, psize.Page512)
 	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
 	// isFire := ecs.CreateFlagPool(w, psize.Page32)
 	// isIce := ecs.CreateFlagPool(w, psize.Page32)
@@ -102,6 +103,8 @@ func InitView() {
 func InitTileEntities(tilemapFilepath string, groundFilepath string, objectsFilepath string, groundTilesetImg *ebiten.Image, objectTilesetImg *ebiten.Image) {
 	var GRASS_TILES = []int{22, 85}
 	var SAND_TILES = []int{148, 211}
+
+	var SOFT_OBJECTS = []int{18, 19, 20, 21, 22}
 
 	// READ TILEMAP
 
@@ -144,50 +147,48 @@ func InitTileEntities(tilemapFilepath string, groundFilepath string, objectsFile
 	for i := 0; i < groundLayer.Height*groundLayer.Width; i++ {
 
 		// ##GROUND##
-		if groundLayer.Data[i] > 0 {
-			id := groundLayer.Data[i] - 1
+		id := groundLayer.Data[i] - 1
 
-			// SPRITE
-			s := sprite.NewSprite(groundTilesetImg, groundTileset.Width, groundTileset.Height)
-			for _, a := range groundTileset.AnimatedTiles {
-				if a.Id == id {
-					s.AddAnimation("default", a.Frames)
-					break
-				}
+		// SPRITE
+		s := sprite.NewSprite(groundTilesetImg, groundTileset.Width, groundTileset.Height)
+		for _, a := range groundTileset.AnimatedTiles {
+			if a.Id == id {
+				s.AddAnimation("default", a.Frames)
+				break
 			}
-			if len(s.Animations) == 0 {
-				s.AddAnimation("default", []sprite.Frame{{N: id, Time: 5000}})
-			}
-			s.SetAnimation("default")
-			spriteComp := c.Sprite{}
-			spriteComp.Sprite = s
-			entity, err := pools.SpritePool.AddNewEntity(spriteComp)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			// SCREEN RENDERER
-			opt := ebiten.DrawImageOptions{}
-			pools.ImageRenderPool.AddExistingEntity(entity, c.ImageRender{Options: opt})
-
-			// MATERIAL
-			materialComp := c.Material{}
-			if slices.Contains(GRASS_TILES, id) {
-				materialComp.Material = material.Grass
-			} else if slices.Contains(SAND_TILES, id) {
-				materialComp.Material = material.Sand
-			} else {
-				materialComp.Material = material.Water
-			}
-			pools.MaterialPool.AddExistingEntity(entity, materialComp)
-
-			// POSITION
-			positionComp := c.Position{X: i % groundLayer.Width, Y: i / groundLayer.Width}
-			pools.PositionPool.AddExistingEntity(entity, positionComp)
-
-			// FLAGS
-			pools.TileFlag.AddExistingEntity(entity)
 		}
+		if len(s.Animations) == 0 {
+			s.AddAnimation("default", []sprite.Frame{{N: id, Time: 5000}})
+		}
+		s.SetAnimation("default")
+		spriteComp := c.Sprite{}
+		spriteComp.Sprite = s
+		entity, err := pools.SpritePool.AddNewEntity(spriteComp)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// SCREEN RENDERER
+		opt := ebiten.DrawImageOptions{}
+		pools.ImageRenderPool.AddExistingEntity(entity, c.ImageRender{Options: opt})
+
+		// MATERIAL
+		materialComp := c.Material{}
+		if slices.Contains(GRASS_TILES, id) {
+			materialComp.Material = material.Grass
+		} else if slices.Contains(SAND_TILES, id) {
+			materialComp.Material = material.Sand
+		} else {
+			materialComp.Material = material.Water
+		}
+		pools.MaterialPool.AddExistingEntity(entity, materialComp)
+
+		// POSITION
+		positionComp := c.Position{X: i % groundLayer.Width, Y: i / groundLayer.Width}
+		pools.PositionPool.AddExistingEntity(entity, positionComp)
+
+		// FLAGS
+		pools.TileFlag.AddExistingEntity(entity)
 
 		// ##OBJECTS##
 		if objectLayer.Data[i]-groundTileset.TileCount > 0 {
@@ -223,46 +224,16 @@ func InitTileEntities(tilemapFilepath string, groundFilepath string, objectsFile
 
 			// FLAGS
 			pools.TileFlag.AddExistingEntity(entity) // OBJECT, NOT TILE
+
+			if !slices.Contains(SOFT_OBJECTS, id) {
+				pools.SolidFlag.AddExistingEntity(entity)
+			}
+
+			// LINK FROM TILE TO OBJECT
+
 		}
 
 	}
-
-	// OBJECTS
-
-	// for i := 0; i < objectLayer.Height*objectLayer.Width; i++ {
-	// 	id := objectLayer.Data[i] - groundTileset.TileCount - 1
-
-	// 	// SPRITE
-	// 	s := sprite.NewSprite(objectTilesetImg, objectTileset.Width, objectTileset.Height)
-
-	// 	for _, a := range objectTileset.AnimatedTiles {
-	// 		if a.Id == id {
-	// 			s.AddAnimation("default", a.Frames)
-	// 			break
-	// 		}
-	// 	}
-	// 	if len(s.Animations) == 0 {
-	// 		s.AddAnimation("default", []sprite.Frame{{N: id, Time: 5000}})
-	// 	}
-	// 	s.SetAnimation("default")
-	// 	spriteComp := c.Sprite{}
-	// 	spriteComp.Sprite = s
-	// 	entity, err := pools.SpritePool.AddNewEntity(spriteComp)
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-
-	// 	opt := ebiten.DrawImageOptions{}
-	// 	opt.GeoM.Translate(0, -float64(s.Height()-16))
-	// 	pools.ImageRenderPool.AddExistingEntity(entity, c.ImageRender{Options: opt})
-
-	// 	// POSITION
-	// 	positionComp := c.Position{X: i % objectLayer.Width, Y: i / objectLayer.Width}
-	// 	pools.PositionPool.AddExistingEntity(entity, positionComp)
-
-	// 	// FLAGS
-	// 	pools.TileFlag.AddExistingEntity(entity)
-	// }
 
 }
 
