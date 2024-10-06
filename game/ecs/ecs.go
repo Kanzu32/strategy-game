@@ -97,7 +97,6 @@ func AddSystem(w *World, system System) {
 }
 
 func (w *World) Update(frameCount int) {
-	fmt.Println("UPDATE!: ", len(w.systems))
 	for _, s := range w.systems {
 		s.Run(frameCount)
 	}

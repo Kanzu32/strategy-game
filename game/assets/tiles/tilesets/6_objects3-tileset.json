@@ -1,0 +1,14 @@
+{ "columns":24,
+ "image":"img\/6_objects3.png",
+ "imageheight":336,
+ "imagewidth":384,
+ "margin":0,
+ "name":"6_objects3-tileset",
+ "spacing":0,
+ "tilecount":168,
+ "tiledversion":"1.11.0",
+ "tileheight":48,
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.10"
+}

@@ -1,4 +1,4 @@
-package material
+package materials
 
 type Materials uint8
 

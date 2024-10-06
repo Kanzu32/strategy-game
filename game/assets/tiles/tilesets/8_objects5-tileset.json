@@ -1,0 +1,14 @@
+{ "columns":20,
+ "image":"img\/8_objects5.png",
+ "imageheight":240,
+ "imagewidth":320,
+ "margin":0,
+ "name":"8_objects5-tileset",
+ "spacing":0,
+ "tilecount":60,
+ "tiledversion":"1.11.0",
+ "tileheight":80,
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.10"
+}

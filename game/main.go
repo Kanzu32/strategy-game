@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"slices"
 	c "strategy-game/components"
-	"strategy-game/components/material"
 	"strategy-game/ecs"
 	"strategy-game/ecs/psize"
 	"strategy-game/pools"
-	"strategy-game/sprite"
 	"strategy-game/systems"
 	tile "strategy-game/tilemap"
 
@@ -51,15 +48,6 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func main() {
-	groundTilesetImg, _, err := ebitenutil.NewImageFromFile("assets/ground-tileset.png")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	objectTilesetImg, _, err := ebitenutil.NewImageFromFile("assets/object-tileset.png")
-	if err != nil {
-		log.Fatal(err)
-	}
 	// s = sprite.NewSprite(img, 16, 16)
 	// s.AddAnimation("anim", []sprite.Frame{
 	// 	{N: 43, Time: 500},
@@ -69,20 +57,25 @@ func main() {
 	// })
 	// s.SetAnimation("anim")
 
+	// INIT
 	w = ecs.CreateWorld()
-	pools.PositionPool = ecs.CreateComponentPool[c.Position](w, psize.Page1024)
-	pools.SpritePool = ecs.CreateComponentPool[c.Sprite](w, psize.Page1024)
-	pools.MaterialPool = ecs.CreateComponentPool[c.Material](w, psize.Page1024)
-	pools.ViewPool = ecs.CreateComponentPool[c.View](w, psize.Page1)
-	pools.ImageRenderPool = ecs.CreateComponentPool[c.ImageRender](w, psize.Page1024)
-
-	pools.SolidFlag = ecs.CreateFlagPool(w, psize.Page512)
-	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
-	// isFire := ecs.CreateFlagPool(w, psize.Page32)
-	// isIce := ecs.CreateFlagPool(w, psize.Page32)
+	InitPools()
 
 	InitView()
-	InitTileEntities("assets/tilemap.json", "assets/ground-tileset.json", "assets/object-tileset.json", groundTilesetImg, objectTilesetImg)
+
+	tilesets := tile.CreateTilesetArray([]string{
+		"assets/tiles/tilesets/1_ground-tileset.json",
+		"assets/tiles/tilesets/2_decals-tileset.json",
+		"assets/tiles/tilesets/3_active-objects-tileset.json",
+		"assets/tiles/tilesets/4_objects1-tileset.json",
+		"assets/tiles/tilesets/5_objects2-tileset.json",
+		"assets/tiles/tilesets/6_objects3-tileset.json",
+		"assets/tiles/tilesets/7_objects4-tileset.json",
+		"assets/tiles/tilesets/8_objects5-tileset.json",
+		"assets/tiles/tilesets/9_objects6-tileset.json",
+		"assets/tiles/tilesets/10_util-tileset.json",
+	})
+	InitTileEntities(tilesets, "assets/tiles/tilemaps/tilemap.json")
 
 	InitSystems()
 
@@ -100,11 +93,7 @@ func InitView() {
 	pools.ViewPool.AddNewEntity(c.View{Img: img})
 }
 
-func InitTileEntities(tilemapFilepath string, groundFilepath string, objectsFilepath string, groundTilesetImg *ebiten.Image, objectTilesetImg *ebiten.Image) {
-	var GRASS_TILES = []int{22, 85}
-	var SAND_TILES = []int{148, 211}
-
-	var SOFT_OBJECTS = []int{18, 19, 20, 21, 22}
+func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 
 	// READ TILEMAP
 
@@ -119,128 +108,102 @@ func InitTileEntities(tilemapFilepath string, groundFilepath string, objectsFile
 		log.Fatal(err)
 	}
 
-	// READ TILESET
-
-	contents, err = os.ReadFile(groundFilepath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	var groundTileset tile.TilesetJSON
-	err = json.Unmarshal(contents, &groundTileset)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	contents, err = os.ReadFile(objectsFilepath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	var objectTileset tile.TilesetJSON
-	err = json.Unmarshal(contents, &objectTileset)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	groundLayer := tilemap.Layers[0] // 1 layer (ground)
 	objectLayer := tilemap.Layers[1] // 2 layer (objects)
+	// utilLayer := tilemap.Layers[2]   // 2 layer (objects)
 
 	for i := 0; i < groundLayer.Height*groundLayer.Width; i++ {
 
 		// ##GROUND##
-		id := groundLayer.Data[i] - 1
+		tileData := tilesets.Get(groundLayer.Data[i])
 
 		// SPRITE
-		s := sprite.NewSprite(groundTilesetImg, groundTileset.Width, groundTileset.Height)
-		for _, a := range groundTileset.AnimatedTiles {
-			if a.Id == id {
-				s.AddAnimation("default", a.Frames)
-				break
-			}
-		}
-		if len(s.Animations) == 0 {
-			s.AddAnimation("default", []sprite.Frame{{N: id, Time: 5000}})
-		}
-		s.SetAnimation("default")
-		spriteComp := c.Sprite{}
-		spriteComp.Sprite = s
-		entity, err := pools.SpritePool.AddNewEntity(spriteComp)
+
+		spriteComp := c.Sprite{Sprite: tileData.Sprite}
+		tileEntity, err := pools.SpritePool.AddNewEntity(spriteComp)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		// SCREEN RENDERER
+		// IMAGE RENDERER
 		opt := ebiten.DrawImageOptions{}
-		pools.ImageRenderPool.AddExistingEntity(entity, c.ImageRender{Options: opt})
+		pools.ImageRenderPool.AddExistingEntity(tileEntity, c.ImageRender{Options: opt})
 
 		// MATERIAL
-		materialComp := c.Material{}
-		if slices.Contains(GRASS_TILES, id) {
-			materialComp.Material = material.Grass
-		} else if slices.Contains(SAND_TILES, id) {
-			materialComp.Material = material.Sand
-		} else {
-			materialComp.Material = material.Water
-		}
-		pools.MaterialPool.AddExistingEntity(entity, materialComp)
+		materialComp := c.Material{Material: tileData.Material}
+		pools.MaterialPool.AddExistingEntity(tileEntity, materialComp)
+
+		// SIDE
+		sideComp := c.Side{Side: tileData.Side}
+		pools.SidePool.AddExistingEntity(tileEntity, sideComp)
 
 		// POSITION
 		positionComp := c.Position{X: i % groundLayer.Width, Y: i / groundLayer.Width}
-		pools.PositionPool.AddExistingEntity(entity, positionComp)
+		pools.PositionPool.AddExistingEntity(tileEntity, positionComp)
 
 		// FLAGS
-		pools.TileFlag.AddExistingEntity(entity)
+		pools.TileFlag.AddExistingEntity(tileEntity)
+
+		// OCCUPIED
+
+		occupiedComp := c.Occupied{StaticObject: nil, ActiveObject: nil, UnitObject: nil}
 
 		// ##OBJECTS##
-		if objectLayer.Data[i]-groundTileset.TileCount > 0 {
-			id := objectLayer.Data[i] - groundTileset.TileCount - 1
+		if objectLayer.Data[i] > 0 {
+			tileData := tilesets.Get(objectLayer.Data[i])
 
 			// SPRITE
-			s := sprite.NewSprite(objectTilesetImg, objectTileset.Width, objectTileset.Height)
-
-			for _, a := range objectTileset.AnimatedTiles {
-				if a.Id == id {
-					s.AddAnimation("default", a.Frames)
-					break
-				}
-			}
-			if len(s.Animations) == 0 {
-				s.AddAnimation("default", []sprite.Frame{{N: id, Time: 5000}})
-			}
-			s.SetAnimation("default")
-			spriteComp := c.Sprite{}
-			spriteComp.Sprite = s
-			entity, err := pools.SpritePool.AddNewEntity(spriteComp)
+			spriteComp := c.Sprite{Sprite: tileData.Sprite}
+			objectEntity, err := pools.SpritePool.AddNewEntity(spriteComp)
 			if err != nil {
 				log.Fatal(err)
 			}
 
+			// IMAGE RENDERER
 			opt := ebiten.DrawImageOptions{}
-			opt.GeoM.Translate(0, -float64(s.Height()-16))
-			pools.ImageRenderPool.AddExistingEntity(entity, c.ImageRender{Options: opt})
+			opt.GeoM.Translate(0, -float64(tileData.Sprite.Height()-16))
+			pools.ImageRenderPool.AddExistingEntity(objectEntity, c.ImageRender{Options: opt})
 
 			// POSITION
 			positionComp := c.Position{X: i % objectLayer.Width, Y: i / objectLayer.Width}
-			pools.PositionPool.AddExistingEntity(entity, positionComp)
+			pools.PositionPool.AddExistingEntity(objectEntity, positionComp)
 
-			// FLAGS
-			pools.TileFlag.AddExistingEntity(entity) // OBJECT, NOT TILE
-
-			if !slices.Contains(SOFT_OBJECTS, id) {
-				pools.SolidFlag.AddExistingEntity(entity)
+			// OCCUPIED (tile) by object
+			if tileData.IsActive {
+				occupiedComp.ActiveObject = &objectEntity
+			} else {
+				occupiedComp.StaticObject = &objectEntity
 			}
 
-			// LINK FROM TILE TO OBJECT
-
+			// FLAGS
+			// pools.TileFlag.AddExistingEntity(entity) // OBJECT, NOT TILE
 		}
 
+		// OCCUPIED
+		pools.OccupiedPool.AddExistingEntity(tileEntity, occupiedComp) // Doesn't include units yet!!!
 	}
 
+}
+
+func InitPools() {
+	pools.PositionPool = ecs.CreateComponentPool[c.Position](w, psize.Page1024)
+	pools.SpritePool = ecs.CreateComponentPool[c.Sprite](w, psize.Page1024)
+	pools.MaterialPool = ecs.CreateComponentPool[c.Material](w, psize.Page1024)
+	pools.ViewPool = ecs.CreateComponentPool[c.View](w, psize.Page1)
+	pools.ImageRenderPool = ecs.CreateComponentPool[c.ImageRender](w, psize.Page1024)
+	pools.SidePool = ecs.CreateComponentPool[c.Side](w, psize.Page1024)
+	pools.OccupiedPool = ecs.CreateComponentPool[c.Occupied](w, psize.Page1024)
+
+	pools.SolidFlag = ecs.CreateFlagPool(w, psize.Page512)
+	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
+	// isFire := ecs.CreateFlagPool(w, psize.Page32)
+	// isIce := ecs.CreateFlagPool(w, psize.Page32)
 }
 
 // INIT SYSTEMS IN ORDER
 
 func InitSystems() {
-	ecs.AddSystem(w, &systems.DrawTilemapSystem{})
+	ecs.AddSystem(w, &systems.DrawTilesSystem{})
 }
 
 // REDRAW SCREEN

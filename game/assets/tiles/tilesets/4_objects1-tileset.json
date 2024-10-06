@@ -1,0 +1,27 @@
+{ "columns":12,
+ "image":"img\/4_objects1.png",
+ "imageheight":256,
+ "imagewidth":192,
+ "margin":0,
+ "name":"4_objects1-tileset",
+ "spacing":0,
+ "tilecount":192,
+ "tiledversion":"1.11.0",
+ "tileheight":16,
+ "tiles":[
+        {
+         "animation":[
+                {
+                 "duration":1000,
+                 "tileid":94
+                }, 
+                {
+                 "duration":1000,
+                 "tileid":95
+                }],
+         "id":94
+        }],
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.10"
+}

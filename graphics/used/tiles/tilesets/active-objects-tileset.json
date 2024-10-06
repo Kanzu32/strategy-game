@@ -1,0 +1,14 @@
+{ "columns":17,
+ "image":"..\/..\/img\/active-objects.png",
+ "imageheight":128,
+ "imagewidth":272,
+ "margin":0,
+ "name":"active-objects-tileset",
+ "spacing":0,
+ "tilecount":68,
+ "tiledversion":"1.11.0",
+ "tileheight":32,
+ "tilewidth":16,
+ "type":"tileset",
+ "version":"1.10"
+}

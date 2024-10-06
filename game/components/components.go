@@ -1,9 +1,10 @@
 package comp
 
 import (
-	"strategy-game/components/material"
+	materials "strategy-game/components/material"
+	sides "strategy-game/components/side"
 	"strategy-game/ecs"
-	"strategy-game/sprite"
+	sprites "strategy-game/sprite"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -18,15 +19,21 @@ type ImageRender struct {
 }
 
 type Sprite struct {
-	Sprite sprite.Sprite
+	Sprite sprites.Sprite
 }
 
 type Material struct {
-	Material material.Materials
+	Material materials.Materials
 }
 
-type OccupiedBy struct {
-	Entity ecs.Entity
+type Side struct {
+	Side sides.Sides
+}
+
+type Occupied struct {
+	ActiveObject *ecs.Entity
+	UnitObject   *ecs.Entity
+	StaticObject *ecs.Entity
 }
 
 type View struct {
