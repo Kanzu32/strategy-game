@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
 	"log"
 	"os"
 	c "strategy-game/components"
@@ -11,9 +13,12 @@ import (
 	"strategy-game/pools"
 	"strategy-game/systems"
 	tile "strategy-game/tilemap"
+	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
+	"github.com/yohamta/furex/v2"
 )
 
 var RenderWidth int = 320
@@ -23,28 +28,128 @@ var frameCounter int = 0
 
 var w *ecs.World
 
-type Game struct{}
+type Game struct {
+	initOnce sync.Once
+	screen   screen
+	gameUI   *furex.View
+}
+
+type screen struct {
+	Width  int
+	Height int
+}
 
 func (g *Game) Update() error {
+	g.initOnce.Do(func() {
+		g.setupUI()
+	})
+	g.gameUI.UpdateWithSize(ebiten.WindowSize())
+
 	frameCounter++
 	w.Update(frameCounter)
+
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	// geom := ebiten.GeoM{}
-	// geom.Rotate(0.05 * float64(frameCounter))
-
-	// screen.DrawImage(s.Animate(frameCounter), &ebiten.DrawImageOptions{GeoM: geom, Filter: ebiten.FilterNearest})
-	// screen.DrawImage(img, &ebiten.DrawImageOptions{})
 	DrawView(screen)
+	g.gameUI.Draw(screen)
+
 	msg := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
 	ebitenutil.DebugPrint(screen, msg)
-
 }
 
-func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return RenderWidth, RenderHeight
+func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
+	g.screen.Width = outsideWidth
+	g.screen.Height = outsideHeight
+	return g.screen.Width, g.screen.Height
+}
+
+func (g *Game) setupUI() {
+	g.gameUI = &furex.View{
+		Width:        g.screen.Width,
+		Height:       g.screen.Height,
+		Direction:    furex.Column,
+		Justify:      furex.JustifyEnd,
+		AlignItems:   furex.AlignItemStretch,
+		AlignContent: furex.AlignContentStretch,
+		Wrap:         furex.NoWrap,
+	}
+
+	// UI HERE
+
+	bottomMargin := 0
+	BottomMenu := furex.View{
+		Height:       100,
+		Handler:      &BottomMenu{},
+		Bottom:       &bottomMargin,
+		Display:      furex.DisplayFlex,
+		Direction:    furex.Row,
+		Justify:      furex.JustifySpaceAround,
+		AlignItems:   furex.AlignItemCenter,
+		AlignContent: furex.AlignContentCenter,
+		Wrap:         furex.NoWrap,
+	}
+
+	g.gameUI.AddChild(&BottomMenu)
+
+	img, _, err := ebitenutil.NewImageFromFile("assets/ui/test-icon.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	BottomMenu.AddChild(&furex.View{
+		Width:   80,
+		Height:  80,
+		Handler: &SpellBottom{Img: img},
+	})
+
+	BottomMenu.AddChild(&furex.View{
+		Width:   80,
+		Height:  80,
+		Handler: &SpellBottom{Img: img},
+	})
+
+	BottomMenu.AddChild(&furex.View{
+		Width:   80,
+		Height:  80,
+		Handler: &SpellBottom{Img: img},
+	})
+}
+
+type BottomMenu struct{}
+
+func (b *BottomMenu) Draw(screen *ebiten.Image, frame image.Rectangle, view *furex.View) {
+	vector.DrawFilledRect(
+		screen,
+		float32(frame.Min.X),
+		float32(frame.Min.Y),
+		float32(frame.Size().X),
+		float32(frame.Size().Y),
+		color.White,
+		false,
+	)
+}
+
+type SpellBottom struct {
+	Img *ebiten.Image
+}
+
+func (b *SpellBottom) Draw(screen *ebiten.Image, frame image.Rectangle, view *furex.View) {
+	opt := ebiten.DrawImageOptions{}
+	opt.Filter = ebiten.FilterNearest
+	opt.GeoM.Scale(2, 2) // UI SCALE
+	opt.GeoM.Translate(float64(frame.Min.X), float64(frame.Min.Y))
+	screen.DrawImage(b.Img, &opt)
+	// vector.DrawFilledRect(
+	// 	screen,
+	// 	float32(frame.Min.X),
+	// 	float32(frame.Min.Y),
+	// 	float32(frame.Size().X),
+	// 	float32(frame.Size().Y),
+	// 	color.Black,
+	// 	false,
+	// )
 }
 
 func main() {
@@ -80,7 +185,7 @@ func main() {
 	InitSystems()
 
 	ebiten.SetWindowSize(640, 480)
-	ebiten.SetWindowTitle("Hello, World!")
+	ebiten.SetWindowTitle("Troublemakers!")
 	if err := ebiten.RunGame(&Game{}); err != nil {
 		log.Fatal(err)
 	}
@@ -90,7 +195,13 @@ func main() {
 
 func InitView() {
 	img := ebiten.NewImage(RenderWidth, RenderHeight)
-	pools.ViewPool.AddNewEntity(c.View{Img: img})
+	ent, err := pools.ViewPool.AddNewEntity(c.View{Img: img})
+	if err != nil {
+		log.Fatal(err)
+	}
+	opt := ebiten.DrawImageOptions{}
+	opt.GeoM.Scale(2, 2)
+	pools.ImageRenderPool.AddExistingEntity(ent, c.ImageRender{Options: opt})
 }
 
 func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
@@ -215,5 +326,10 @@ func DrawView(screen *ebiten.Image) {
 		log.Fatal(err)
 	}
 
-	screen.DrawImage(view.Img, &ebiten.DrawImageOptions{})
+	imgRender, err := pools.ImageRenderPool.Component(ent)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	screen.DrawImage(view.Img, &imgRender.Options)
 }
