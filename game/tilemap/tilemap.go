@@ -2,6 +2,7 @@ package tile
 
 import (
 	"encoding/json"
+	"image"
 	"log"
 	"os"
 	materials "strategy-game/components/material"
@@ -9,7 +10,6 @@ import (
 	sprites "strategy-game/sprite"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
 type TileInfoJSON struct {
@@ -166,10 +166,18 @@ func CreateTilesetArray(paths []string) TilesetArray {
 
 		json.Unmarshal(contents, &tileset)
 
-		tileset.Image, _, err = ebitenutil.NewImageFromFile("assets/tiles/tilesets/" + tileset.ImagePath)
+		f, err := os.Open("assets/tiles/tilesets/" + tileset.ImagePath)
 		if err != nil {
 			log.Fatal(err)
 		}
+		defer f.Close()
+
+		img, _, err := image.Decode(f)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		tileset.Image = ebiten.NewImageFromImage(img)
 
 		tilesetArray.Data = append(tilesetArray.Data, tileset)
 	}
