@@ -71,7 +71,7 @@ func (s *Sprite) Animate(frameCounter int) *ebiten.Image {
 func (s *Sprite) SetAnimation(animationName string) {
 	_, ok := s.Animations[animationName]
 	if !ok {
-		return
+		panic("UNKNOWN ANIMATION")
 	}
 	s.currentAnimation = animationName
 	s.currentFrame = 0

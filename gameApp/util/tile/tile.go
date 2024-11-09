@@ -47,8 +47,23 @@ type TilesetArray struct {
 	Data []tilesetJSON
 }
 
+// ID тайлсета с объектами для взаимодействия. (бочки, кактусы, трава...)
 const ACTIVE_OBJECTS_TILESET = 2
 
+// ID вспомогательного тайлсета
+const UTILITY_TILESET = 9
+
+// ID вспомогательных тайлов
+const WALL_ID = 0
+
+// SHIELDER, GLAVER, MAGE, ARCHER
+// var BLUE_TEAM = []int{1, 6, 11, 16}
+// var RED_TEAM = []int{2, 7, 12, 17}
+
+var BLUE_TEAM = []int{2, 7, 12, 17}
+var RED_TEAM = []int{3, 8, 13, 18}
+
+// мягкие объекты (трава)
 var SOFT_OBJECTS = []int{17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 34, 36, 37, 38, 39, 40, 41, 42, 43}
 
 type tileData struct {
@@ -57,13 +72,22 @@ type tileData struct {
 	Side     side.Side
 	IsActive bool
 	IsSoft   bool
+	IsWall   bool
+	IsUnit   bool
+	Team     int
+	Class    int
 }
 
 func (arr *TilesetArray) Get(n int) tileData {
 	var target tilesetJSON
 	isActive := false
 	isSoft := false
+	isWall := false
+	isUnit := false
+	team := 0
+	class := 0
 	tilesetN := n
+
 	for i, tileset := range arr.Data {
 		if tilesetN > tileset.TileCount {
 			tilesetN = tilesetN - tileset.TileCount
@@ -74,6 +98,32 @@ func (arr *TilesetArray) Get(n int) tileData {
 				for _, id := range SOFT_OBJECTS {
 					if tilesetN == id {
 						isSoft = true
+						break
+					}
+				}
+			}
+			if i == UTILITY_TILESET {
+				if tilesetN == WALL_ID {
+					isWall = true
+					break
+				}
+				for cl, id := range BLUE_TEAM {
+					if tilesetN == id {
+						println("BLUE")
+						println(cl)
+						isUnit = true
+						team = 1
+						class = cl
+						break
+					}
+				}
+				for cl, id := range RED_TEAM {
+					if tilesetN == id {
+						println("RED")
+						println(cl)
+						isUnit = true
+						team = 2
+						class = cl
 						break
 					}
 				}
@@ -152,6 +202,10 @@ func (arr *TilesetArray) Get(n int) tileData {
 		Side:     s,
 		IsActive: isActive,
 		IsSoft:   isSoft,
+		IsWall:   isWall,
+		IsUnit:   isUnit,
+		Team:     team,
+		Class:    class,
 	}
 }
 

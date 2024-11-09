@@ -180,7 +180,7 @@
          "name":"util",
          "opacity":1,
          "type":"tilelayer",
-         "visible":false,
+         "visible":true,
          "width":50,
          "x":0,
          "y":0

@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"strategy-game/util/ecs/parray"
 	"strategy-game/util/ecs/psize"
-
-	"github.com/hajimehoshi/ebiten/v2"
+	"strategy-game/util/gamedata"
 )
 
 const maxEntities = 65536
@@ -51,7 +50,7 @@ func (e Entity) String() string {
 // SYSTEM
 
 type System interface {
-	Run(g GameData)
+	Run(g gamedata.GameData)
 }
 
 // WORLD
@@ -98,15 +97,7 @@ func AddSystem(w *World, system System) {
 	w.systems = append(w.systems, system)
 }
 
-type GameData interface {
-	FrameCount() int
-	RenderHeight() int
-	RenderWidth() int
-	View() *ebiten.Image
-	ViewOptions() *ebiten.DrawImageOptions
-}
-
-func (w *World) Update(g GameData) {
+func (w *World) Update(g gamedata.GameData) {
 	for _, s := range w.systems {
 		s.Run(g)
 	}

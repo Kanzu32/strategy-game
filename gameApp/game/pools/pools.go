@@ -14,3 +14,5 @@ var OccupiedPool *ecs.ComponentPool[c.Occupied]
 
 var SolidFlag *ecs.FlagPool
 var TileFlag *ecs.FlagPool
+var WallFlag *ecs.FlagPool
+var GhostFlag *ecs.FlagPool

@@ -1,11 +1,17 @@
 @startuml
-namespace comp {
-    class Material << (S,Aquamarine) >> {
-        + Material material.Materials
+namespace components {
+    class ImageRender << (S,Aquamarine) >> {
+        + Options ebiten.DrawImageOptions
 
     }
-    class OccupiedBy << (S,Aquamarine) >> {
-        + Entity ecs.Entity
+    class Material << (S,Aquamarine) >> {
+        + Material material.Material
+
+    }
+    class Occupied << (S,Aquamarine) >> {
+        + ActiveObject *ecs.Entity
+        + UnitObject *ecs.Entity
+        + StaticObject *ecs.Entity
 
     }
     class Position << (S,Aquamarine) >> {
@@ -13,9 +19,8 @@ namespace comp {
         + Y int
 
     }
-    class ScreenRender << (S,Aquamarine) >> {
-        + X int
-        + Y int
+    class Side << (S,Aquamarine) >> {
+        + Side side.Side
 
     }
     class Sprite << (S,Aquamarine) >> {
@@ -25,20 +30,14 @@ namespace comp {
 }
 
 
-"comp.Material" o-- "material.Materials"
-"comp.OccupiedBy" o-- "ecs.Entity"
-"comp.Sprite" o-- "sprite.Sprite"
+"components.ImageRender" o-- "ebiten.DrawImageOptions"
+"components.Material" o-- "material.Material"
+"components.Occupied" o-- "ecs.Entity"
+"components.Side" o-- "side.Side"
+"components.Sprite" o-- "sprite.Sprite"
 
 namespace ecs {
     class  << (S,Aquamarine) >> {
-        + AddNewEntity(comp componentType) (Entity, error)
-        + AddExistingEntity(entity Entity, comp componentType) error
-        + RemoveEntity(entity Entity) error
-        + HasEntity(entity Entity) bool
-        + Entities() []Entity
-        + Component(entity Entity) (*componentType, error)
-        + EntityCount() int
-        + String() string
         + AddNewEntity(comp componentType) (Entity, error)
         + AddExistingEntity(entity Entity, comp componentType) error
         + RemoveEntity(entity Entity) error
@@ -54,17 +53,9 @@ namespace ecs {
         + Entities() []Entity
         + EntityCount() int
         + RemoveEntity(entity Entity) error
-        + HasEntity(entity Entity) bool
-        + Entities() []Entity
-        + EntityCount() int
-        + RemoveEntity(entity Entity) error
 
     }
     class ComponentPool << (S,Aquamarine) >> {
-        - denseComponents []componentType
-        - denseEntities []Entity
-        - sparseEntities parray.PageArray
-        - world *World
         - denseComponents []componentType
         - denseEntities []Entity
         - sparseEntities parray.PageArray
@@ -75,23 +66,13 @@ namespace ecs {
         - state uint8
         - id uint16
         - version uint8
-        - state uint8
-        - id uint16
-        - version uint8
 
         - isNil() bool
         - isRegistered() bool
         - setNil() 
         - setRegistered() 
         - clear() 
-        - isNil() bool
-        - isRegistered() bool
-        - setNil() 
-        - setRegistered() 
-        - clear() 
 
-        + ID() uint16
-        + String() string
         + ID() uint16
         + String() string
 
@@ -100,16 +81,7 @@ namespace ecs {
         - denseEntities []Entity
         - sparseEntities parray.PageArray
         - world *World
-        - denseEntities []Entity
-        - sparseEntities parray.PageArray
-        - world *World
 
-        + AddNewEntity() (Entity, error)
-        + AddExistingEntity(entity Entity) (Entity, error)
-        + RemoveEntity(entity Entity) error
-        + HasEntity(entity Entity) bool
-        + Entities() []Entity
-        + EntityCount() int
         + AddNewEntity() (Entity, error)
         + AddExistingEntity(entity Entity) (Entity, error)
         + RemoveEntity(entity Entity) error
@@ -118,20 +90,29 @@ namespace ecs {
         + EntityCount() int
 
     }
+    interface GameData  {
+        + FrameCount() int
+        + RenderHeight() int
+        + RenderWidth() int
+        + View() *ebiten.Image
+        + ViewOptions() *ebiten.DrawImageOptions
+
+    }
+    interface System  {
+        + Run(g GameData) 
+
+    }
     class World << (S,Aquamarine) >> {
         - pools []AnyPool
-        - next uint32
-        - entities []Entity
-        - destroyed Entity
-        - pools []AnyPool
+        - systems []System
         - next uint32
         - entities []Entity
         - destroyed Entity
 
         - registerNewEntity() (Entity, error)
         - isRegisteredEntity(entity Entity) bool
-        - registerNewEntity() (Entity, error)
-        - isRegisteredEntity(entity Entity) bool
+
+        + Update(g GameData) 
 
     }
     class ecs.P << (T, #FF7700) >>  {
@@ -150,20 +131,48 @@ namespace ecs {
 "ecs.FlagPool" o-- "parray.PageArray"
 "ecs.World" o-- "ecs.AnyPool"
 "ecs.World" o-- "ecs.Entity"
+"ecs.World" o-- "ecs.System"
 
-namespace main {
+namespace game {
     class Game << (S,Aquamarine) >> {
+        - world *ecs.World
+        - view *ebiten.Image
+        - viewOptions *ebiten.DrawImageOptions
+        - frameCount int
+        - initOnce sync.Once
+        - screen screen
+        - ui *furex.View
+
+        - setupUI() 
+
+        + FrameCount() int
+        + View() *ebiten.Image
+        + ViewOptions() *ebiten.DrawImageOptions
+        + RenderWidth() int
+        + RenderHeight() int
         + Update() error
         + Draw(screen *ebiten.Image) 
         + Layout(outsideWidth int, outsideHeight int) (int, int)
 
     }
+    class screen << (S,Aquamarine) >> {
+        - width int
+        - height int
+
+    }
 }
 
+"ecs.GameData" <|-- "game.Game"
 
+"game.Game" o-- "ebiten.DrawImageOptions"
+"game.Game" o-- "ebiten.Image"
+"game.Game" o-- "ecs.World"
+"game.Game" o-- "furex.View"
+"game.Game" o-- "game.screen"
+"game.Game" o-- "sync.Once"
 
 namespace material {
-    class material.Materials << (T, #FF7700) >>  {
+    class material.Material << (T, #FF7700) >>  {
     }
 }
 
@@ -174,14 +183,7 @@ namespace parray {
         - data [][]int
         - pageSize uint16
         - arraySize int
-        - data [][]int
-        - pageSize uint16
-        - arraySize int
 
-        + Size() int
-        + Set(index uint16, value int) 
-        + Get(index uint16) int
-        + String() string
         + Size() int
         + Set(index uint16, value int) 
         + Get(index uint16) int
@@ -193,7 +195,14 @@ namespace parray {
 
 
 namespace psize {
-    class psize.PageSizes << (T, #FF7700) >>  {
+    class psize.PageSize << (T, #FF7700) >>  {
+    }
+}
+
+
+
+namespace side {
+    class side.Side << (T, #FF7700) >>  {
     }
 }
 
@@ -216,6 +225,8 @@ namespace sprite {
 
         + Animations <font color=blue>map</font>[string][]Frame
 
+        + Width() int
+        + Height() int
         + Animate(frameCounter int) *ebiten.Image
         + SetAnimation(animationName string) 
         + AddAnimation(animationName string, frames []Frame) 
@@ -227,10 +238,26 @@ namespace sprite {
 "sprite.Sprite" o-- "ebiten.Image"
 "sprite.Sprite" o-- "sprite.Frame"
 
+namespace systems {
+    class TestSystem << (S,Aquamarine) >> {
+        + Run(g ecs.GameData) 
+
+    }
+}
+
+"ecs.System" <|-- "systems.TestSystem"
+
+
 namespace tile {
-    class AnimationsJSON << (S,Aquamarine) >> {
+    class PropertyJSON << (S,Aquamarine) >> {
+        + Name string
+        + Value string
+
+    }
+    class TileInfoJSON << (S,Aquamarine) >> {
         + Id int
         + Frames []sprite.Frame
+        + Properties []PropertyJSON
 
     }
     class TilemapJSON << (S,Aquamarine) >> {
@@ -243,20 +270,60 @@ namespace tile {
         + Height int
 
     }
-    class TilesetJSON << (S,Aquamarine) >> {
+    class TilesetArray << (S,Aquamarine) >> {
+        + Data []tilesetJSON
+
+        + Get(n int) tileData
+
+    }
+    class tileData << (S,Aquamarine) >> {
+        + Sprite sprite.Sprite
+        + Material material.Material
+        + Side side.Side
+        + IsActive bool
+        + IsSoft bool
+
+    }
+    class tilesetJSON << (S,Aquamarine) >> {
         + Width int
         + Height int
-        + AnimatedTiles []AnimationsJSON
+        + TilesInfo []TileInfoJSON
+        + TileCount int
+        + ImagePath string
+        + Image *ebiten.Image
 
     }
 }
 
 
-"tile.AnimationsJSON" o-- "sprite.Frame"
+"tile.TileInfoJSON" o-- "sprite.Frame"
+"tile.TileInfoJSON" o-- "tile.PropertyJSON"
 "tile.TilemapJSON" o-- "tile.TilemapLayerJSON"
-"tile.TilesetJSON" o-- "tile.AnimationsJSON"
+"tile.TilesetArray" o-- "tile.tilesetJSON"
+"tile.tileData" o-- "material.Material"
+"tile.tileData" o-- "side.Side"
+"tile.tileData" o-- "sprite.Sprite"
+"tile.tilesetJSON" o-- "ebiten.Image"
+"tile.tilesetJSON" o-- "tile.TileInfoJSON"
 
-"__builtin__.uint16" #.. "psize.PageSizes"
-"__builtin__.uint8" #.. "material.Materials"
+namespace ui {
+    class BottomMenu << (S,Aquamarine) >> {
+        + Draw(screen *ebiten.Image, frame image.Rectangle, view *furex.View) 
+
+    }
+    class SpellBottom << (S,Aquamarine) >> {
+        + Img *ebiten.Image
+
+        + Draw(screen *ebiten.Image, frame image.Rectangle, view *furex.View) 
+
+    }
+}
+
+
+"ui.SpellBottom" o-- "ebiten.Image"
+
+"__builtin__.uint16" #.. "psize.PageSize"
+"__builtin__.uint8" #.. "material.Material"
+"__builtin__.uint8" #.. "side.Side"
 "ecs.AnyPool" #.. "ecs.P"
 @enduml

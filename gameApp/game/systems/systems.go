@@ -1,11 +1,9 @@
 package systems
 
-import (
-	"strategy-game/util/ecs"
-)
+import "strategy-game/util/gamedata"
 
 type TestSystem struct{}
 
-func (s *TestSystem) Run(g ecs.GameData) {
+func (s *TestSystem) Run(g gamedata.GameData) {
 
 }
