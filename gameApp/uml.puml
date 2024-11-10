@@ -90,16 +90,8 @@ namespace ecs {
         + EntityCount() int
 
     }
-    interface GameData  {
-        + FrameCount() int
-        + RenderHeight() int
-        + RenderWidth() int
-        + View() *ebiten.Image
-        + ViewOptions() *ebiten.DrawImageOptions
-
-    }
     interface System  {
-        + Run(g GameData) 
+        + Run(g gamedata.GameData) 
 
     }
     class World << (S,Aquamarine) >> {
@@ -112,7 +104,7 @@ namespace ecs {
         - registerNewEntity() (Entity, error)
         - isRegisteredEntity(entity Entity) bool
 
-        + Update(g GameData) 
+        + Update(g gamedata.GameData) 
 
     }
     class ecs.P << (T, #FF7700) >>  {
@@ -137,17 +129,19 @@ namespace game {
     class Game << (S,Aquamarine) >> {
         - world *ecs.World
         - view *ebiten.Image
-        - viewOptions *ebiten.DrawImageOptions
+        - viewScale int
         - frameCount int
-        - initOnce sync.Once
         - screen screen
-        - ui *furex.View
+        - ui *ui.GameUI
 
-        - setupUI() 
+        - handleInput() 
+        - mousePos() (int, int)
 
         + FrameCount() int
         + View() *ebiten.Image
-        + ViewOptions() *ebiten.DrawImageOptions
+        + ViewScale() int
+        + ViewScaleInc() 
+        + ViewScaleDec() 
         + RenderWidth() int
         + RenderHeight() int
         + Update() error
@@ -162,14 +156,27 @@ namespace game {
     }
 }
 
-"ecs.GameData" <|-- "game.Game"
+"gamedata.GameData" <|-- "game.Game"
 
-"game.Game" o-- "ebiten.DrawImageOptions"
 "game.Game" o-- "ebiten.Image"
 "game.Game" o-- "ecs.World"
-"game.Game" o-- "furex.View"
 "game.Game" o-- "game.screen"
-"game.Game" o-- "sync.Once"
+"game.Game" o-- "ui.GameUI"
+
+namespace gamedata {
+    interface GameData  {
+        + FrameCount() int
+        + RenderHeight() int
+        + RenderWidth() int
+        + View() *ebiten.Image
+        + ViewScale() int
+        + ViewScaleInc() 
+        + ViewScaleDec() 
+
+    }
+}
+
+
 
 namespace material {
     class material.Material << (T, #FF7700) >>  {
@@ -240,7 +247,7 @@ namespace sprite {
 
 namespace systems {
     class TestSystem << (S,Aquamarine) >> {
-        + Run(g ecs.GameData) 
+        + Run(g gamedata.GameData) 
 
     }
 }
@@ -282,6 +289,10 @@ namespace tile {
         + Side side.Side
         + IsActive bool
         + IsSoft bool
+        + IsWall bool
+        + IsUnit bool
+        + Team int
+        + Class int
 
     }
     class tilesetJSON << (S,Aquamarine) >> {
@@ -307,23 +318,56 @@ namespace tile {
 "tile.tilesetJSON" o-- "tile.TileInfoJSON"
 
 namespace ui {
-    class BottomMenu << (S,Aquamarine) >> {
-        + Draw(screen *ebiten.Image, frame image.Rectangle, view *furex.View) 
+    class Button << (S,Aquamarine) >> {
+        - icon icon
+
+        + Active bool
+        + Handler handler
+        + UnscaledX int
+        + UnscaledY int
+
+        + Click(g gamedata.GameData) 
+        + Image() *ebiten.Image
+        + InBounds(x int, y int) bool
 
     }
-    class SpellBottom << (S,Aquamarine) >> {
-        + Img *ebiten.Image
+    class GameUI << (S,Aquamarine) >> {
+        + MenuBackground *ebiten.Image
+        + WalkButton Button
+        + AttackButton Button
+        + SkillButton Button
+        + PlusButton Button
+        + MinusButton Button
+        + Portraits []*ebiten.Image
+        + Skills []*ebiten.Image
+        + CurrentScale int
 
-        + Draw(screen *ebiten.Image, frame image.Rectangle, view *furex.View) 
+        + Draw(screen *ebiten.Image, g gamedata.GameData) 
+        + DrawButton(button *Button, x int, y int, scale int, screen *ebiten.Image) 
 
+    }
+    class icon << (S,Aquamarine) >> {
+        + Active *ebiten.Image
+        + Inactive *ebiten.Image
+
+    }
+    class ui.handler << (T, #FF7700) >>  {
+    }
+    class "<font color=blue>func</font>(gamedata.GameData) " as fontcolorbluefuncfontgamedataGameData {
+        'This class was created so that we can correctly have an alias pointing to this name. Since it contains dots that can break namespaces
     }
 }
 
 
-"ui.SpellBottom" o-- "ebiten.Image"
+"ui.Button" o-- "ui.handler"
+"ui.Button" o-- "ui.icon"
+"ui.GameUI" o-- "ebiten.Image"
+"ui.GameUI" o-- "ui.Button"
+"ui.icon" o-- "ebiten.Image"
 
 "__builtin__.uint16" #.. "psize.PageSize"
 "__builtin__.uint8" #.. "material.Material"
 "__builtin__.uint8" #.. "side.Side"
 "ecs.AnyPool" #.. "ecs.P"
+"ui.fontcolorbluefuncfontgamedataGameData" #.. "ui.handler"
 @enduml
