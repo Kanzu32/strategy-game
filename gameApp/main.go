@@ -9,6 +9,7 @@ import (
 )
 
 // TODO SPLIT TARGET UNIT AND TARGET OBJECT
+// TODO RENDER WITH/WITHOUT OCCUPIED ENT
 
 func main() {
 	ebiten.SetWindowSize(640, 480)

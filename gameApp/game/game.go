@@ -36,7 +36,8 @@ func InitPools(w *ecs.World) {
 	// pools.SolidFlag = ecs.CreateFlagPool(w, psize.Page512)
 	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
 	pools.WallFlag = ecs.CreateFlagPool(w, psize.Page1024)
-	pools.GhostFlag = ecs.CreateFlagPool(w, psize.Page64)
+	pools.UnitFlag = ecs.CreateFlagPool(w, psize.Page16)
+	pools.GhostFlag = ecs.CreateFlagPool(w, psize.Page16)
 	pools.ActiveFlag = ecs.CreateFlagPool(w, psize.Page64)
 	pools.TargetUnitFlag = ecs.CreateFlagPool(w, psize.Page8)
 	pools.TargetObjectFlag = ecs.CreateFlagPool(w, psize.Page128)
@@ -183,11 +184,17 @@ func (g *Game) handleInput() {
 			if position.X*16 < xPosGame && xPosGame < position.X*16+sprite.Sprite.Width() &&
 				position.Y*16 < yPosGame && yPosGame < position.Y*16+sprite.Sprite.Height() {
 
-				for _, ent := range pools.TargetFlag.Entities() {
-					pools.TargetFlag.RemoveEntity(ent)
+				if pools.UnitFlag.HasEntity(entity) { // UNITS
+					for _, ent := range pools.TargetUnitFlag.Entities() {
+						pools.TargetUnitFlag.RemoveEntity(ent)
+					}
+					pools.TargetUnitFlag.AddExistingEntity(entity)
+				} else { // OTHER OBJECTS
+					for _, ent := range pools.TargetObjectFlag.Entities() {
+						pools.TargetObjectFlag.RemoveEntity(ent)
+					}
+					pools.TargetObjectFlag.AddExistingEntity(entity)
 				}
-
-				pools.TargetFlag.AddExistingEntity(entity)
 				return
 			}
 		}
@@ -432,6 +439,7 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 
 				pools.GhostFlag.AddExistingEntity(unitEntity)
 
+				pools.UnitFlag.AddExistingEntity(unitEntity)
 				occupiedComp.UnitObject = &unitEntity
 			}
 		}

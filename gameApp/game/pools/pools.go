@@ -18,6 +18,7 @@ var EnergyPool *ecs.ComponentPool[c.Energy]
 // var SolidFlag *ecs.FlagPool
 var TileFlag *ecs.FlagPool
 var WallFlag *ecs.FlagPool
+var UnitFlag *ecs.FlagPool
 var GhostFlag *ecs.FlagPool
 var ActiveFlag *ecs.FlagPool
 var TargetUnitFlag *ecs.FlagPool

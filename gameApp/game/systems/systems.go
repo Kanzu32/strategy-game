@@ -19,7 +19,7 @@ type ActiveUnitsSystem struct{}
 
 func (s *ActiveUnitsSystem) Run(g gamedata.GameData) {
 	if singletons.Turn.CurrentTurn == singletons.Turn.PlayerTeam {
-		entities := ecs.PoolFilter([]ecs.AnyPool{pools.TeamPool, pools.EnergyPool}, []ecs.AnyPool{pools.ActiveFlag})
+		entities := ecs.PoolFilter([]ecs.AnyPool{pools.TeamPool, pools.EnergyPool}, []ecs.AnyPool{pools.ActiveFlag}) // all inactive units
 		for _, entity := range entities {
 			energyComp, err := pools.EnergyPool.Component(entity)
 			if err != nil {
@@ -32,7 +32,7 @@ func (s *ActiveUnitsSystem) Run(g gamedata.GameData) {
 			}
 
 			if energyComp.Energy > 0 && teamComp.Team == singletons.Turn.PlayerTeam {
-				pools.ActiveFlag.AddExistingEntity(entity) // highlight active units
+				pools.ActiveFlag.AddExistingEntity(entity) // highlight units
 			}
 		}
 	}
@@ -41,11 +41,13 @@ func (s *ActiveUnitsSystem) Run(g gamedata.GameData) {
 type ActionSystem struct{}
 
 func (s *ActionSystem) Run(g gamedata.GameData) {
-	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetFlag, pools.EnergyPool, pools.ClassPool, pools.PositionPool}, []ecs.AnyPool{})
+	// get targeted unit
+	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag, pools.EnergyPool, pools.ClassPool, pools.PositionPool}, []ecs.AnyPool{})
 	if len(units) > 1 {
 		panic("More than one targeted units")
 	}
 
+	// all tiles
 	tiles := ecs.PoolFilter([]ecs.AnyPool{pools.TileFlag, pools.PositionPool, pools.OccupiedPool}, []ecs.AnyPool{})
 
 	for _, unit := range units {
@@ -117,7 +119,7 @@ func (s *DrawWorldSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
 
 		options.ColorScale = render.Options.ColorScale
 
-		if pools.ActiveFlag.HasEntity(tileEntity) {
+		if pools.ActiveFlag.HasEntity(tileEntity) { // draw active tile
 			println(pools.ActiveFlag.EntityCount())
 			options.ColorScale.Scale(1, 1.2, 1, 1)
 		}
@@ -133,12 +135,14 @@ func (s *DrawWorldSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
 
 		if occupied.UnitObject != nil {
 			unitEntity := *occupied.UnitObject
+			// TODO draw active/targeted
 			img, opt := entityImage(unitEntity, frameCount)
 			view.DrawImage(img, opt)
 		}
 
 		if occupied.ActiveObject != nil {
 			objectEntity := *occupied.ActiveObject
+			// TODO draw active/targeted
 			img, opt := entityImage(objectEntity, frameCount)
 			view.DrawImage(img, opt)
 		}
@@ -191,77 +195,77 @@ func (s *DrawGhostsSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
 	screen.DrawImage(view, opt)
 }
 
-type DrawActiveSystem struct{}
+// type DrawActiveSystem struct{}
 
-func (s *DrawActiveSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
-	frameCount := g.FrameCount()
-	view := g.View()
-	for _, HighlightedEntity := range pools.ActiveFlag.Entities() {
-		position, err := pools.PositionPool.Component(HighlightedEntity)
-		if err != nil {
-			panic(err)
-		}
+// func (s *DrawActiveSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
+// 	frameCount := g.FrameCount()
+// 	view := g.View()
+// 	for _, HighlightedEntity := range pools.ActiveFlag.Entities() {
+// 		position, err := pools.PositionPool.Component(HighlightedEntity)
+// 		if err != nil {
+// 			panic(err)
+// 		}
 
-		sprite, err := pools.SpritePool.Component(HighlightedEntity)
-		if err != nil {
-			panic(err)
-		}
+// 		sprite, err := pools.SpritePool.Component(HighlightedEntity)
+// 		if err != nil {
+// 			panic(err)
+// 		}
 
-		render, err := pools.ImageRenderPool.Component(HighlightedEntity)
-		if err != nil {
-			panic(err)
-		}
+// 		render, err := pools.ImageRenderPool.Component(HighlightedEntity)
+// 		if err != nil {
+// 			panic(err)
+// 		}
 
-		options := ebiten.DrawImageOptions{}
-		options.GeoM.Translate(float64(position.X*16), float64(position.Y*16))
-		options.GeoM.Concat(render.Options.GeoM)
+// 		options := ebiten.DrawImageOptions{}
+// 		options.GeoM.Translate(float64(position.X*16), float64(position.Y*16))
+// 		options.GeoM.Concat(render.Options.GeoM)
 
-		options.ColorScale = render.Options.ColorScale
-		options.ColorScale.Scale(1.5, 1.5, 1.5, 1)
-		options.Filter = render.Options.Filter
-		view.DrawImage(sprite.Sprite.Animate(frameCount), &options)
-	}
+// 		options.ColorScale = render.Options.ColorScale
+// 		options.ColorScale.Scale(1.5, 1.5, 1.5, 1)
+// 		options.Filter = render.Options.Filter
+// 		view.DrawImage(sprite.Sprite.Animate(frameCount), &options)
+// 	}
 
-	opt := &ebiten.DrawImageOptions{}
-	opt.GeoM.Scale(float64(g.ViewScale()), float64(g.ViewScale()))
-	screen.DrawImage(view, opt)
-}
+// 	opt := &ebiten.DrawImageOptions{}
+// 	opt.GeoM.Scale(float64(g.ViewScale()), float64(g.ViewScale()))
+// 	screen.DrawImage(view, opt)
+// }
 
-type DrawTargetedSystem struct{}
+// type DrawTargetedSystem struct{}
 
-func (s *DrawTargetedSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
-	frameCount := g.FrameCount()
-	view := g.View()
-	for _, HighlightedEntity := range pools.TargetFlag.Entities() {
-		position, err := pools.PositionPool.Component(HighlightedEntity)
-		if err != nil {
-			panic(err)
-		}
+// func (s *DrawTargetedSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
+// 	frameCount := g.FrameCount()
+// 	view := g.View()
+// 	for _, HighlightedEntity := range pools.TargetFlag.Entities() {
+// 		position, err := pools.PositionPool.Component(HighlightedEntity)
+// 		if err != nil {
+// 			panic(err)
+// 		}
 
-		sprite, err := pools.SpritePool.Component(HighlightedEntity)
-		if err != nil {
-			panic(err)
-		}
+// 		sprite, err := pools.SpritePool.Component(HighlightedEntity)
+// 		if err != nil {
+// 			panic(err)
+// 		}
 
-		render, err := pools.ImageRenderPool.Component(HighlightedEntity)
-		if err != nil {
-			panic(err)
-		}
+// 		render, err := pools.ImageRenderPool.Component(HighlightedEntity)
+// 		if err != nil {
+// 			panic(err)
+// 		}
 
-		options := ebiten.DrawImageOptions{}
-		options.GeoM.Translate(float64(position.X*16), float64(position.Y*16))
-		options.GeoM.Concat(render.Options.GeoM)
+// 		options := ebiten.DrawImageOptions{}
+// 		options.GeoM.Translate(float64(position.X*16), float64(position.Y*16))
+// 		options.GeoM.Concat(render.Options.GeoM)
 
-		options.ColorScale = render.Options.ColorScale
-		options.ColorScale.Scale(2, 1, 1, 1)
-		options.Filter = render.Options.Filter
-		view.DrawImage(sprite.Sprite.Animate(frameCount), &options)
-	}
+// 		options.ColorScale = render.Options.ColorScale
+// 		options.ColorScale.Scale(2, 1, 1, 1)
+// 		options.Filter = render.Options.Filter
+// 		view.DrawImage(sprite.Sprite.Animate(frameCount), &options)
+// 	}
 
-	opt := &ebiten.DrawImageOptions{}
-	opt.GeoM.Scale(float64(g.ViewScale()), float64(g.ViewScale()))
-	screen.DrawImage(view, opt)
-}
+// 	opt := &ebiten.DrawImageOptions{}
+// 	opt.GeoM.Scale(float64(g.ViewScale()), float64(g.ViewScale()))
+// 	screen.DrawImage(view, opt)
+// }
 
 func entityImage(objectEntity ecs.Entity, frameCount int) (*ebiten.Image, *ebiten.DrawImageOptions) {
 	position, err := pools.PositionPool.Component(objectEntity)
