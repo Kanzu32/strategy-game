@@ -1,10 +1,12 @@
 package components
 
 import (
+	"strategy-game/util/classes"
 	"strategy-game/util/ecs"
 	"strategy-game/util/material"
 	"strategy-game/util/side"
 	"strategy-game/util/sprite"
+	"strategy-game/util/teams"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -34,4 +36,16 @@ type Occupied struct {
 	ActiveObject *ecs.Entity
 	UnitObject   *ecs.Entity
 	StaticObject *ecs.Entity
+}
+
+type Team struct {
+	Team teams.Team
+}
+
+type Class struct {
+	Class classes.Class
+}
+
+type Energy struct {
+	Energy uint8
 }

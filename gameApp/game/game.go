@@ -2,17 +2,19 @@ package game
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 
 	c "strategy-game/game/components"
 	"strategy-game/game/pools"
+	"strategy-game/game/singletons"
 	"strategy-game/game/systems"
+	"strategy-game/util/classes"
 	"strategy-game/util/ecs"
 	"strategy-game/util/ecs/psize"
-	"strategy-game/util/gamedata"
 	"strategy-game/util/sprite"
+	"strategy-game/util/teams"
 	"strategy-game/util/tile"
+	"strategy-game/util/turn"
 	"strategy-game/util/ui"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -20,7 +22,46 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
-func NewGame() *Game {
+func InitPools(w *ecs.World) {
+	pools.PositionPool = ecs.CreateComponentPool[c.Position](w, psize.Page1024)
+	pools.SpritePool = ecs.CreateComponentPool[c.Sprite](w, psize.Page1024)
+	pools.MaterialPool = ecs.CreateComponentPool[c.Material](w, psize.Page1024)
+	pools.ImageRenderPool = ecs.CreateComponentPool[c.ImageRender](w, psize.Page1024)
+	pools.SidePool = ecs.CreateComponentPool[c.Side](w, psize.Page1024)
+	pools.OccupiedPool = ecs.CreateComponentPool[c.Occupied](w, psize.Page1024)
+	pools.TeamPool = ecs.CreateComponentPool[c.Team](w, psize.Page32)
+	pools.ClassPool = ecs.CreateComponentPool[c.Class](w, psize.Page16)
+	pools.EnergyPool = ecs.CreateComponentPool[c.Energy](w, psize.Page128)
+
+	// pools.SolidFlag = ecs.CreateFlagPool(w, psize.Page512)
+	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
+	pools.WallFlag = ecs.CreateFlagPool(w, psize.Page1024)
+	pools.GhostFlag = ecs.CreateFlagPool(w, psize.Page64)
+	pools.ActiveFlag = ecs.CreateFlagPool(w, psize.Page64)
+	pools.TargetUnitFlag = ecs.CreateFlagPool(w, psize.Page8)
+	pools.TargetObjectFlag = ecs.CreateFlagPool(w, psize.Page128)
+	// isFire := ecs.CreateFlagPool(w, psize.Page32)
+	// isIce := ecs.CreateFlagPool(w, psize.Page32)
+}
+
+// INIT SYSTEMS IN ORDER
+
+func InitSystems(w *ecs.World) {
+	ecs.AddRenderSystem(w, &systems.DrawWorldSystem{})
+	ecs.AddRenderSystem(w, &systems.DrawGhostsSystem{})
+	ecs.AddRenderSystem(w, &systems.DrawActiveSystem{})
+	ecs.AddRenderSystem(w, &systems.DrawTargetedSystem{})
+
+	ecs.AddSystem(w, &systems.ActiveUnitsSystem{})
+	ecs.AddSystem(w, &systems.ActionSystem{})
+}
+
+func InitStartData(playerTeam teams.Team) {
+	singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: playerTeam}
+
+}
+
+func NewGame(playerTeam teams.Team) *Game {
 	g := &Game{
 		world:      ecs.CreateWorld(),
 		viewScale:  2,
@@ -49,6 +90,7 @@ func NewGame() *Game {
 	})
 
 	InitTileEntities(tilesets, "assets/tiles/tilemaps/tilemap.json")
+	InitStartData(playerTeam)
 	InitSystems(g.world)
 
 	return g
@@ -111,19 +153,55 @@ func (g *Game) RenderHeight() int {
 }
 
 func (g *Game) handleInput() {
+
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		xPos, yPos := g.mousePos()
-		if g.ui.PlusButton.InBounds(xPos, yPos) {
+		xPosUI, yPosUI := g.mousePosUIScale()
+		// UI
+		if g.ui.PlusButton.InBounds(xPosUI, yPosUI) {
 			g.ui.PlusButton.Click(g)
-		} else if g.ui.MinusButton.InBounds(xPos, yPos) {
+			return
+		} else if g.ui.MinusButton.InBounds(xPosUI, yPosUI) {
 			g.ui.MinusButton.Click(g)
+			return
+		}
+
+		// ENT
+
+		activeEntities := ecs.PoolFilter([]ecs.AnyPool{pools.ActiveFlag, pools.PositionPool, pools.SpritePool}, []ecs.AnyPool{})
+		xPosGame, yPosGame := g.mousePosGameScale()
+		for _, entity := range activeEntities {
+			position, err := pools.PositionPool.Component(entity)
+			if err != nil {
+				panic(err)
+			}
+
+			sprite, err := pools.SpritePool.Component(entity)
+			if err != nil {
+				panic(err)
+			}
+
+			if position.X*16 < xPosGame && xPosGame < position.X*16+sprite.Sprite.Width() &&
+				position.Y*16 < yPosGame && yPosGame < position.Y*16+sprite.Sprite.Height() {
+
+				for _, ent := range pools.TargetFlag.Entities() {
+					pools.TargetFlag.RemoveEntity(ent)
+				}
+
+				pools.TargetFlag.AddExistingEntity(entity)
+				return
+			}
 		}
 	}
 }
 
-func (g *Game) mousePos() (int, int) {
+func (g *Game) mousePosUIScale() (int, int) {
 	x, y := ebiten.CursorPosition()
 	return x / g.ui.CurrentScale, y / g.ui.CurrentScale
+}
+
+func (g *Game) mousePosGameScale() (int, int) {
+	x, y := ebiten.CursorPosition()
+	return x / g.viewScale, y / g.viewScale
 }
 
 func (g *Game) Update() error {
@@ -135,7 +213,8 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	DrawWorld(g, screen)
+	// DrawWorld(g, screen)
+	g.world.Draw(g, screen)
 	// print(screen.Bounds().Dx(), screen.Bounds().Dy())
 	g.ui.Draw(screen, g)
 	// msg := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
@@ -148,21 +227,19 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return g.screen.width, g.screen.height
 }
 
-// INIT ECS POOLS
-
 func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 
 	// READ TILEMAP
 
 	contents, err := os.ReadFile(tilemapFilepath)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	var tilemap tile.TilemapJSON
 	err = json.Unmarshal(contents, &tilemap)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	groundLayer := tilemap.Layers[0] // 1 layer (ground)
@@ -179,7 +256,7 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 		spriteComp := c.Sprite{Sprite: tileData.Sprite}
 		tileEntity, err := pools.SpritePool.AddNewEntity(spriteComp)
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 
 		// IMAGE RENDERER
@@ -213,7 +290,7 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 			spriteComp := c.Sprite{Sprite: tileData.Sprite}
 			objectEntity, err := pools.SpritePool.AddNewEntity(spriteComp)
 			if err != nil {
-				log.Fatal(err)
+				panic(err)
 			}
 
 			// IMAGE RENDERER
@@ -243,30 +320,35 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 			if tileData.IsWall {
 				pools.WallFlag.AddExistingEntity(tileEntity)
 			} else if tileData.IsUnit {
-				class, team := "", ""
+				team := teams.Blue
+				class := classes.Shield
 				switch tileData.Class {
 				case 0: // SHILDER
-					class = "shield"
+					class = classes.Shield
 				case 1: // GLAIVER
-					class = "glaive"
-				case 2: // MAGE
-					class = "mage"
+					class = classes.Glaive
+				case 2: // ROGUE
+					class = classes.Knife
 				case 3: // ARCHER
-					class = "bow"
+					class = classes.Bow
 				default:
 					panic("UNEXPECTED CLASS")
 				}
 
 				switch tileData.Team {
 				case 1: // BLUE
-					team = "blue"
+					team = teams.Blue
 				case 2: // RED
-					team = "red"
+					team = teams.Red
 				default:
 					panic("UNEXPECTED TEAM")
 				}
 
-				img, _, err := ebitenutil.NewImageFromFile("assets/img/" + team + "-" + class + ".png")
+				//img, _, err := ebitenutil.NewImageFromFile("assets/img/" + team + "-" + class + ".png")
+				print(class.String())
+
+				// TODO SKINS
+				img, _, err := ebitenutil.NewImageFromFile("assets/img/" + team.String() + ".png")
 				if err != nil {
 					panic(err)
 				}
@@ -330,7 +412,7 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 				spriteComp := c.Sprite{Sprite: spr}
 				unitEntity, err := pools.SpritePool.AddNewEntity(spriteComp)
 				if err != nil {
-					log.Fatal(err)
+					panic(err)
 				}
 
 				opt := ebiten.DrawImageOptions{}
@@ -339,6 +421,14 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 
 				positionComp := c.Position{X: i % utilLayer.Width, Y: i / utilLayer.Width}
 				pools.PositionPool.AddExistingEntity(unitEntity, positionComp)
+
+				classComp := c.Class{Class: class}
+				pools.ClassPool.AddExistingEntity(unitEntity, classComp)
+
+				teamComp := c.Team{Team: team}
+				pools.TeamPool.AddExistingEntity(unitEntity, teamComp)
+
+				pools.EnergyPool.AddExistingEntity(unitEntity, c.Energy{Energy: 5})
 
 				pools.GhostFlag.AddExistingEntity(unitEntity)
 
@@ -349,137 +439,4 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 		pools.OccupiedPool.AddExistingEntity(tileEntity, occupiedComp)
 	}
 
-}
-
-func InitPools(w *ecs.World) {
-	pools.PositionPool = ecs.CreateComponentPool[c.Position](w, psize.Page1024)
-	pools.SpritePool = ecs.CreateComponentPool[c.Sprite](w, psize.Page1024)
-	pools.MaterialPool = ecs.CreateComponentPool[c.Material](w, psize.Page1024)
-	pools.ImageRenderPool = ecs.CreateComponentPool[c.ImageRender](w, psize.Page1024)
-	pools.SidePool = ecs.CreateComponentPool[c.Side](w, psize.Page1024)
-	pools.OccupiedPool = ecs.CreateComponentPool[c.Occupied](w, psize.Page1024)
-
-	pools.SolidFlag = ecs.CreateFlagPool(w, psize.Page512)
-	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
-	pools.WallFlag = ecs.CreateFlagPool(w, psize.Page1024)
-	pools.GhostFlag = ecs.CreateFlagPool(w, psize.Page256)
-	// isFire := ecs.CreateFlagPool(w, psize.Page32)
-	// isIce := ecs.CreateFlagPool(w, psize.Page32)
-}
-
-// INIT SYSTEMS IN ORDER
-
-func InitSystems(w *ecs.World) {
-	ecs.AddSystem(w, &systems.TestSystem{})
-}
-
-func DrawWorld(g gamedata.GameData, screen *ebiten.Image) {
-	frameCount := g.FrameCount()
-	view := g.View()
-	for _, tileEntity := range pools.TileFlag.Entities() {
-		position, err := pools.PositionPool.Component(tileEntity)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		sprite, err := pools.SpritePool.Component(tileEntity)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		render, err := pools.ImageRenderPool.Component(tileEntity)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		options := ebiten.DrawImageOptions{}
-		options.GeoM.Translate(float64(position.X*16), float64(position.Y*16))
-		options.GeoM.Concat(render.Options.GeoM)
-
-		options.Blend = render.Options.Blend
-		options.ColorScale = render.Options.ColorScale
-		options.Filter = render.Options.Filter
-		view.DrawImage(sprite.Sprite.Animate(frameCount), &options)
-
-		// OBJECT
-		occupied, err := pools.OccupiedPool.Component(tileEntity)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if occupied.UnitObject != nil {
-			unitEntity := *occupied.UnitObject
-			img, opt := entityDrawData(unitEntity, frameCount)
-			view.DrawImage(img, opt)
-		}
-
-		if occupied.ActiveObject != nil {
-			objectEntity := *occupied.ActiveObject
-			img, opt := entityDrawData(objectEntity, frameCount)
-			view.DrawImage(img, opt)
-		}
-
-		if occupied.StaticObject != nil {
-			objectEntity := *occupied.StaticObject
-			img, opt := entityDrawData(objectEntity, frameCount)
-			view.DrawImage(img, opt)
-		}
-
-	}
-
-	for _, ghostEntity := range pools.GhostFlag.Entities() {
-		position, err := pools.PositionPool.Component(ghostEntity)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		sprite, err := pools.SpritePool.Component(ghostEntity)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		render, err := pools.ImageRenderPool.Component(ghostEntity)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		options := ebiten.DrawImageOptions{}
-		options.GeoM.Translate(float64(position.X*16), float64(position.Y*16))
-		options.GeoM.Concat(render.Options.GeoM)
-
-		options.ColorScale = render.Options.ColorScale
-		options.ColorScale.ScaleAlpha(0.6)
-		options.Filter = render.Options.Filter
-		view.DrawImage(sprite.Sprite.Animate(frameCount), &options)
-	}
-
-	opt := &ebiten.DrawImageOptions{}
-	opt.GeoM.Scale(float64(g.ViewScale()), float64(g.ViewScale()))
-	screen.DrawImage(view, opt)
-}
-
-func entityDrawData(objectEntity ecs.Entity, frameCount int) (*ebiten.Image, *ebiten.DrawImageOptions) {
-	position, err := pools.PositionPool.Component(objectEntity)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	sprite, err := pools.SpritePool.Component(objectEntity)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	render, err := pools.ImageRenderPool.Component(objectEntity)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	options := ebiten.DrawImageOptions{}
-	options.GeoM.Translate(float64(position.X*16), float64(position.Y*16))
-	options.GeoM.Concat(render.Options.GeoM)
-
-	options.Blend = render.Options.Blend
-	options.ColorScale = render.Options.ColorScale
-	options.Filter = render.Options.Filter
-	return sprite.Sprite.Animate(frameCount), &options
 }

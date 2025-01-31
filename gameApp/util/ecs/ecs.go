@@ -3,9 +3,12 @@ package ecs
 import (
 	"errors"
 	"fmt"
+	"log"
 	"strategy-game/util/ecs/parray"
 	"strategy-game/util/ecs/psize"
 	"strategy-game/util/gamedata"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 const maxEntities = 65536
@@ -53,12 +56,17 @@ type System interface {
 	Run(g gamedata.GameData)
 }
 
+type RenderSystem interface {
+	Run(g gamedata.GameData, screen *ebiten.Image)
+}
+
 // WORLD
 
 type World struct {
 	pools []AnyPool
 
-	systems []System
+	systems       []System
+	renderSystems []RenderSystem
 
 	next      uint32   // next available entity ID
 	entities  []Entity // array to mark registred and destroyed entities
@@ -97,9 +105,19 @@ func AddSystem(w *World, system System) {
 	w.systems = append(w.systems, system)
 }
 
+func AddRenderSystem(w *World, renderSystem RenderSystem) {
+	w.renderSystems = append(w.renderSystems, renderSystem)
+}
+
 func (w *World) Update(g gamedata.GameData) {
 	for _, s := range w.systems {
 		s.Run(g)
+	}
+}
+
+func (w *World) Draw(g gamedata.GameData, screen *ebiten.Image) {
+	for _, s := range w.renderSystems {
+		s.Run(g, screen)
 	}
 }
 
@@ -108,6 +126,7 @@ func (w *World) registerNewEntity() (Entity, error) {
 		if w.next == maxEntities {
 			e := Entity{}
 			e.setNil()
+			log.Println("world have too many entities")
 			return e, errors.New("too many entities")
 		}
 		w.entities[w.next].setRegistered()
@@ -166,7 +185,12 @@ func (pool *ComponentPool[componentType]) AddNewEntity(comp componentType) (Enti
 }
 
 func (pool *ComponentPool[componentType]) AddExistingEntity(entity Entity, comp componentType) error {
+	if pool.HasEntity(entity) {
+		log.Println("entity already in the pool")
+		return errors.New("entity already in the pool")
+	}
 	if !pool.world.isRegisteredEntity(entity) {
+		log.Println("entityID is not registered")
 		return errors.New("entityID is not registered")
 	}
 	pool.denseComponents = append(pool.denseComponents, comp)
@@ -201,7 +225,8 @@ func (pool *ComponentPool[componentType]) Entities() []Entity {
 
 func (pool *ComponentPool[componentType]) Component(entity Entity) (*componentType, error) {
 	if !pool.HasEntity(entity) {
-		return nil, errors.New("Entity is not in the pool")
+		log.Println("entity is not in the pool")
+		return nil, errors.New("entity is not in the pool")
 	}
 	return &pool.denseComponents[pool.sparseEntities.Get(entity.id)], nil
 }
@@ -269,7 +294,12 @@ func (pool *FlagPool) AddNewEntity() (Entity, error) {
 }
 
 func (pool *FlagPool) AddExistingEntity(entity Entity) (Entity, error) {
+	if pool.HasEntity(entity) {
+		log.Println("entity already in the pool")
+		return entity, errors.New("entity already in the pool")
+	}
 	if !pool.world.isRegisteredEntity(entity) {
+		log.Println("entityID is not registered")
 		return entity, errors.New("entityID is not registered")
 	}
 	pool.denseEntities = append(pool.denseEntities, entity)
