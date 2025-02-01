@@ -15,6 +15,7 @@ import (
 	"strategy-game/util/teams"
 	"strategy-game/util/tile"
 	"strategy-game/util/turn"
+	"strategy-game/util/turnstate"
 	"strategy-game/util/ui"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -52,12 +53,14 @@ func InitSystems(w *ecs.World) {
 	ecs.AddRenderSystem(w, &systems.DrawWorldSystem{})
 	ecs.AddRenderSystem(w, &systems.DrawGhostsSystem{})
 
-	ecs.AddSystem(w, &systems.ActiveUnitsSystem{})
-	ecs.AddSystem(w, &systems.ActionSystem{})
+	ecs.AddSystem(w, &systems.TurnSystem{})
+	ecs.AddSystem(w, &systems.MarkActiveUnitsSystem{})
+	ecs.AddSystem(w, &systems.MarkActiveTilesSystem{})
+
 }
 
 func InitStartData(playerTeam teams.Team) {
-	singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: playerTeam}
+	singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: playerTeam, State: turnstate.Input}
 
 }
 
@@ -167,9 +170,19 @@ func (g *Game) handleInput() {
 
 		// ENT
 
-		activeEntities := ecs.PoolFilter([]ecs.AnyPool{pools.ActiveFlag, pools.PositionPool, pools.SpritePool}, []ecs.AnyPool{})
+		if singletons.Turn.State != turnstate.Input {
+			return
+		}
+
+		// клик на активный (active) либо взятый в цель (target object) объект на экране
+		activeEntities := ecs.PoolFilter([]ecs.AnyPool{pools.PositionPool, pools.SpritePool}, []ecs.AnyPool{})
 		xPosGame, yPosGame := g.mousePosGameScale()
 		for _, entity := range activeEntities {
+			// неактивные объекты и объекты не взятые в цель игнорируются
+			if !pools.ActiveFlag.HasEntity(entity) && !pools.TargetObjectFlag.HasEntity(entity) {
+				continue
+			}
+
 			position, err := pools.PositionPool.Component(entity)
 			if err != nil {
 				panic(err)
@@ -183,7 +196,30 @@ func (g *Game) handleInput() {
 			if position.X*16 < xPosGame && xPosGame < position.X*16+sprite.Sprite.Width() &&
 				position.Y*16 < yPosGame && yPosGame < position.Y*16+sprite.Sprite.Height() {
 
-				if pools.UnitFlag.HasEntity(entity) { // UNITS
+				// объект, взятый в цель, явл. тайлом (выбрать объект в цель для действия)
+				if pools.TargetObjectFlag.HasEntity(entity) && pools.TileFlag.HasEntity(entity) {
+					singletons.Turn.State = turnstate.Action
+					println("muvin")
+					return
+				}
+
+				// активный объект не являющийся юнитом (выбрать объект в цель для действия)
+				if pools.ActiveFlag.HasEntity(entity) && !pools.UnitFlag.HasEntity(entity) {
+					for _, ent := range pools.TargetObjectFlag.Entities() {
+						pools.TargetObjectFlag.RemoveEntity(ent)
+					}
+					pools.TargetObjectFlag.AddExistingEntity(entity)
+					return
+				}
+
+				// компонент team есть у всех юнитов (проверка на юнит выше)
+				team, err := pools.TeamPool.Component(entity)
+				if err != nil {
+					panic(err)
+				}
+
+				// активный юнит игрока (выбрать его для управления)
+				if pools.ActiveFlag.HasEntity(entity) && team.Team == singletons.Turn.PlayerTeam {
 					for _, ent := range pools.TargetUnitFlag.Entities() {
 						pools.TargetUnitFlag.RemoveEntity(ent)
 					}
@@ -191,13 +227,22 @@ func (g *Game) handleInput() {
 						pools.TargetObjectFlag.RemoveEntity(ent)
 					}
 					pools.TargetUnitFlag.AddExistingEntity(entity)
-				} else { // OTHER OBJECTS
+					return
+				}
+
+				// активный юнит оппонента (выбрать юнит в цель для действия)
+				if pools.ActiveFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
 					for _, ent := range pools.TargetObjectFlag.Entities() {
 						pools.TargetObjectFlag.RemoveEntity(ent)
 					}
 					pools.TargetObjectFlag.AddExistingEntity(entity)
+					return
 				}
-				return
+
+				if pools.TargetObjectFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
+					// атака...
+					return
+				}
 			}
 		}
 	}
@@ -332,7 +377,6 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 
 			tileData := tilesets.Get(utilLayer.Data[i])
 			if tileData.IsWall {
-				println("WALL")
 				pools.WallFlag.AddExistingEntity(tileEntity)
 			} else if tileData.IsUnit {
 				team := teams.Blue
@@ -360,7 +404,7 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 				}
 
 				//img, _, err := ebitenutil.NewImageFromFile("assets/img/" + team + "-" + class + ".png")
-				print(class.String())
+				// print(class.String())
 
 				// TODO SKINS
 				img, _, err := ebitenutil.NewImageFromFile("assets/img/" + team.String() + ".png")
@@ -443,7 +487,7 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 				teamComp := c.Team{Team: team}
 				pools.TeamPool.AddExistingEntity(unitEntity, teamComp)
 
-				pools.EnergyPool.AddExistingEntity(unitEntity, c.Energy{Energy: 5})
+				pools.EnergyPool.AddExistingEntity(unitEntity, c.Energy{Energy: singletons.ClassStats[class].MaxEnergy})
 
 				pools.GhostFlag.AddExistingEntity(unitEntity)
 

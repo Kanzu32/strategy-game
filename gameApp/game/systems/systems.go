@@ -7,6 +7,7 @@ import (
 	"strategy-game/game/singletons"
 	"strategy-game/util/ecs"
 	"strategy-game/util/gamedata"
+	"strategy-game/util/turnstate"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -15,9 +16,23 @@ import (
 // LOGIC SYSTEMS
 // ###
 
-type ActiveUnitsSystem struct{}
+type TurnSystem struct{}
 
-func (s *ActiveUnitsSystem) Run(g gamedata.GameData) {
+func (s *TurnSystem) Run(g gamedata.GameData) { // highlight active units
+	if singletons.Turn.State == turnstate.Action {
+		for _, ent := range pools.ActiveFlag.Entities() {
+			pools.ActiveFlag.RemoveEntity(ent)
+		}
+	}
+}
+
+type MarkActiveUnitsSystem struct{}
+
+func (s *MarkActiveUnitsSystem) Run(g gamedata.GameData) { // highlight active units
+	if singletons.Turn.State != turnstate.Input {
+		return
+	}
+
 	if singletons.Turn.CurrentTurn == singletons.Turn.PlayerTeam {
 		entities := ecs.PoolFilter([]ecs.AnyPool{pools.TeamPool, pools.EnergyPool}, []ecs.AnyPool{pools.ActiveFlag}) // all inactive units
 		for _, entity := range entities {
@@ -38,9 +53,14 @@ func (s *ActiveUnitsSystem) Run(g gamedata.GameData) {
 	}
 }
 
-type ActionSystem struct{}
+type MarkActiveTilesSystem struct{}
 
-func (s *ActionSystem) Run(g gamedata.GameData) {
+func (s *MarkActiveTilesSystem) Run(g gamedata.GameData) {
+
+	if singletons.Turn.State != turnstate.Input {
+		return
+	}
+
 	// get targeted unit
 	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag, pools.EnergyPool, pools.ClassPool, pools.PositionPool}, []ecs.AnyPool{})
 	if len(units) > 1 {
@@ -51,15 +71,6 @@ func (s *ActionSystem) Run(g gamedata.GameData) {
 	tiles := ecs.PoolFilter([]ecs.AnyPool{pools.TileFlag, pools.PositionPool, pools.OccupiedPool}, []ecs.AnyPool{})
 
 	for _, unit := range units {
-		// energy, err := pools.EnergyPool.Component(unit)
-		// if err != nil {
-		// 	panic(err)
-		// }
-
-		// class, err := pools.ClassPool.Component(unit)
-		// if err != nil {
-		// 	panic(err)
-		// }
 
 		unitPosition, err := pools.PositionPool.Component(unit)
 		if err != nil {
@@ -89,6 +100,28 @@ func (s *ActionSystem) Run(g gamedata.GameData) {
 			}
 		}
 	}
+}
+
+type MoveSystem struct{}
+
+func (s *MoveSystem) Run(g gamedata.GameData) {
+
+	if singletons.Turn.State != turnstate.Action {
+		return
+	}
+
+	// get targeted unit
+	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{})
+	if len(units) > 1 {
+		panic("More than one targeted units")
+	}
+
+	// get targeted tile
+	tiles := ecs.PoolFilter([]ecs.AnyPool{pools.TileFlag, pools.TargetObjectFlag}, []ecs.AnyPool{})
+	if len(tiles) > 1 {
+		panic("More than one targeted objects")
+	}
+
 }
 
 // ###

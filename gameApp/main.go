@@ -9,7 +9,10 @@ import (
 )
 
 // TODO WALK
-// TODO UI
+// TODO MAIN UI
+// TODO GAME UI
+// TODO ATTACK SYSTEM
+// TODO ...
 
 func main() {
 	ebiten.SetWindowSize(640, 480)

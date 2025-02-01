@@ -109,8 +109,6 @@ func (arr *TilesetArray) Get(n int) tileData {
 				}
 				for cl, id := range BLUE_TEAM {
 					if tilesetN == id {
-						println("BLUE")
-						println(cl)
 						isUnit = true
 						team = 1
 						class = cl
@@ -119,8 +117,6 @@ func (arr *TilesetArray) Get(n int) tileData {
 				}
 				for cl, id := range RED_TEAM {
 					if tilesetN == id {
-						println("RED")
-						println(cl)
 						isUnit = true
 						team = 2
 						class = cl
