@@ -8,8 +8,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// TODO SPLIT TARGET UNIT AND TARGET OBJECT
-// TODO RENDER WITH/WITHOUT OCCUPIED ENT
+// TODO WALK
+// TODO UI
 
 func main() {
 	ebiten.SetWindowSize(640, 480)

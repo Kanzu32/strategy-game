@@ -36,6 +36,7 @@ func InitPools(w *ecs.World) {
 	// pools.SolidFlag = ecs.CreateFlagPool(w, psize.Page512)
 	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
 	pools.WallFlag = ecs.CreateFlagPool(w, psize.Page1024)
+	pools.SoftFlag = ecs.CreateFlagPool(w, psize.Page16)
 	pools.UnitFlag = ecs.CreateFlagPool(w, psize.Page16)
 	pools.GhostFlag = ecs.CreateFlagPool(w, psize.Page16)
 	pools.ActiveFlag = ecs.CreateFlagPool(w, psize.Page64)
@@ -50,8 +51,6 @@ func InitPools(w *ecs.World) {
 func InitSystems(w *ecs.World) {
 	ecs.AddRenderSystem(w, &systems.DrawWorldSystem{})
 	ecs.AddRenderSystem(w, &systems.DrawGhostsSystem{})
-	ecs.AddRenderSystem(w, &systems.DrawActiveSystem{})
-	ecs.AddRenderSystem(w, &systems.DrawTargetedSystem{})
 
 	ecs.AddSystem(w, &systems.ActiveUnitsSystem{})
 	ecs.AddSystem(w, &systems.ActionSystem{})
@@ -188,6 +187,9 @@ func (g *Game) handleInput() {
 					for _, ent := range pools.TargetUnitFlag.Entities() {
 						pools.TargetUnitFlag.RemoveEntity(ent)
 					}
+					for _, ent := range pools.TargetObjectFlag.Entities() {
+						pools.TargetObjectFlag.RemoveEntity(ent)
+					}
 					pools.TargetUnitFlag.AddExistingEntity(entity)
 				} else { // OTHER OBJECTS
 					for _, ent := range pools.TargetObjectFlag.Entities() {
@@ -311,6 +313,11 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 
 			// OCCUPIED (tile) by object
 			if tileData.IsActive {
+
+				if tileData.IsSoft {
+					pools.SoftFlag.AddExistingEntity(objectEntity)
+				}
+
 				occupiedComp.ActiveObject = &objectEntity
 			} else {
 				occupiedComp.StaticObject = &objectEntity
@@ -325,6 +332,7 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 
 			tileData := tilesets.Get(utilLayer.Data[i])
 			if tileData.IsWall {
+				println("WALL")
 				pools.WallFlag.AddExistingEntity(tileEntity)
 			} else if tileData.IsUnit {
 				team := teams.Blue

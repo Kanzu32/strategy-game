@@ -77,7 +77,12 @@ func (s *ActionSystem) Run(g gamedata.GameData) {
 				panic(err)
 			}
 
-			if positionsDistance(unitPosition, tilePostion) == 1 && !pools.ActiveFlag.HasEntity(tile) && !pools.WallFlag.HasEntity(tile) && occupied.UnitObject == nil && occupied.ActiveObject == nil {
+			if positionsDistance(unitPosition, tilePostion) == 1 &&
+				!pools.ActiveFlag.HasEntity(tile) &&
+				!pools.WallFlag.HasEntity(tile) &&
+				occupied.UnitObject == nil &&
+				(occupied.ActiveObject == nil || pools.SoftFlag.HasEntity(*occupied.ActiveObject)) {
+
 				pools.ActiveFlag.AddExistingEntity(tile)
 			} else if positionsDistance(unitPosition, tilePostion) != 1 && pools.ActiveFlag.HasEntity(tile) {
 				pools.ActiveFlag.RemoveEntity(tile)
@@ -119,9 +124,10 @@ func (s *DrawWorldSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
 
 		options.ColorScale = render.Options.ColorScale
 
-		if pools.ActiveFlag.HasEntity(tileEntity) { // draw active tile
-			println(pools.ActiveFlag.EntityCount())
-			options.ColorScale.Scale(1, 1.2, 1, 1)
+		if pools.TargetObjectFlag.HasEntity(tileEntity) { // draw active tile
+			options.ColorScale.Scale(2, 1, 1, 1)
+		} else if pools.ActiveFlag.HasEntity(tileEntity) {
+			options.ColorScale.Scale(1, 2, 1, 1)
 		}
 
 		options.Filter = render.Options.Filter
@@ -135,15 +141,31 @@ func (s *DrawWorldSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
 
 		if occupied.UnitObject != nil {
 			unitEntity := *occupied.UnitObject
-			// TODO draw active/targeted
 			img, opt := entityImage(unitEntity, frameCount)
+
+			// units highlight
+			if pools.TargetUnitFlag.HasEntity(unitEntity) {
+				opt.ColorScale.Scale(2, 1, 1, 1)
+			} else if pools.ActiveFlag.HasEntity(unitEntity) {
+				opt.ColorScale.Scale(1, 2, 1, 1)
+			}
+
 			view.DrawImage(img, opt)
 		}
 
 		if occupied.ActiveObject != nil {
 			objectEntity := *occupied.ActiveObject
-			// TODO draw active/targeted
 			img, opt := entityImage(objectEntity, frameCount)
+
+			// objects highlight
+			if pools.TargetObjectFlag.HasEntity(objectEntity) {
+				println("1")
+				opt.ColorScale.Scale(2, 1, 1, 1)
+			} else if pools.ActiveFlag.HasEntity(objectEntity) {
+				println("2")
+				opt.ColorScale.Scale(1, 2, 1, 1)
+			}
+
 			view.DrawImage(img, opt)
 		}
 

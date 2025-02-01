@@ -54,7 +54,7 @@ const ACTIVE_OBJECTS_TILESET = 2
 const UTILITY_TILESET = 9
 
 // ID вспомогательных тайлов
-const WALL_ID = 0
+const WALL_ID = 1
 
 // SHIELDER, GLAVER, MAGE, ARCHER
 // var BLUE_TEAM = []int{1, 6, 11, 16}
