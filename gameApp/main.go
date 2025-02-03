@@ -16,7 +16,7 @@ import (
 
 func main() {
 	ebiten.SetWindowSize(640, 480)
-	ebiten.SetWindowTitle("Смутьяны!")
+	// ebiten.SetWindowTitle("Смутьяны!")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	if err := ebiten.RunGame(game.NewGame(teams.Blue)); err != nil {
 		log.Fatal(err)

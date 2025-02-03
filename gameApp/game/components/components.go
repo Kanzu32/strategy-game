@@ -7,6 +7,7 @@ import (
 	"strategy-game/util/side"
 	"strategy-game/util/sprite"
 	"strategy-game/util/teams"
+	"strategy-game/util/tween"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -48,4 +49,8 @@ type Class struct {
 
 type Energy struct {
 	Energy uint8
+}
+
+type Tween struct {
+	Animation tween.TweenAnimation
 }

@@ -15,7 +15,7 @@ import (
 	"strategy-game/util/teams"
 	"strategy-game/util/tile"
 	"strategy-game/util/turn"
-	"strategy-game/util/turnstate"
+	"strategy-game/util/turn/turnstate"
 	"strategy-game/util/ui"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -33,6 +33,7 @@ func InitPools(w *ecs.World) {
 	pools.TeamPool = ecs.CreateComponentPool[c.Team](w, psize.Page32)
 	pools.ClassPool = ecs.CreateComponentPool[c.Class](w, psize.Page16)
 	pools.EnergyPool = ecs.CreateComponentPool[c.Energy](w, psize.Page128)
+	pools.TweenPool = ecs.CreateComponentPool[c.Tween](w, psize.Page128)
 
 	// pools.SolidFlag = ecs.CreateFlagPool(w, psize.Page512)
 	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)

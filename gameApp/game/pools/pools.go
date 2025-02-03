@@ -14,6 +14,7 @@ var OccupiedPool *ecs.ComponentPool[c.Occupied]
 var TeamPool *ecs.ComponentPool[c.Team]
 var ClassPool *ecs.ComponentPool[c.Class]
 var EnergyPool *ecs.ComponentPool[c.Energy]
+var TweenPool *ecs.ComponentPool[c.Tween]
 
 var TileFlag *ecs.FlagPool
 var WallFlag *ecs.FlagPool

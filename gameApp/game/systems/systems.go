@@ -7,7 +7,7 @@ import (
 	"strategy-game/game/singletons"
 	"strategy-game/util/ecs"
 	"strategy-game/util/gamedata"
-	"strategy-game/util/turnstate"
+	"strategy-game/util/turn/turnstate"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -122,6 +122,7 @@ func (s *MoveSystem) Run(g gamedata.GameData) {
 		panic("More than one targeted objects")
 	}
 
+	// TODO move unit, animate with tween
 }
 
 // ###
