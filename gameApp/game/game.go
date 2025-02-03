@@ -57,6 +57,7 @@ func InitSystems(w *ecs.World) {
 	ecs.AddSystem(w, &systems.TurnSystem{})
 	ecs.AddSystem(w, &systems.MarkActiveUnitsSystem{})
 	ecs.AddSystem(w, &systems.MarkActiveTilesSystem{})
+	ecs.AddSystem(w, &systems.MoveSystem{})
 
 }
 

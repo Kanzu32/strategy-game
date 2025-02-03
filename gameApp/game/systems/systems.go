@@ -8,6 +8,8 @@ import (
 	"strategy-game/util/ecs"
 	"strategy-game/util/gamedata"
 	"strategy-game/util/turn/turnstate"
+	"strategy-game/util/tween"
+	"strategy-game/util/tween/tweentype"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -114,15 +116,27 @@ func (s *MoveSystem) Run(g gamedata.GameData) {
 	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{})
 	if len(units) > 1 {
 		panic("More than one targeted units")
+	} else if len(units) == 0 {
+		panic("Zero targeted units")
 	}
+	unit := units[0]
 
-	// get targeted tile
+	// get targeted object
 	tiles := ecs.PoolFilter([]ecs.AnyPool{pools.TileFlag, pools.TargetObjectFlag}, []ecs.AnyPool{})
 	if len(tiles) > 1 {
 		panic("More than one targeted objects")
+	} else if len(tiles) == 0 {
+		return
 	}
+	// tile := tiles[0]
 
+	println("addin")
+	pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 1000, 16, 0, 0)})
 	// TODO move unit, animate with tween
+
+	for _, ent := range tiles {
+		pools.TargetObjectFlag.RemoveEntity(ent)
+	}
 }
 
 // ###
@@ -182,6 +196,18 @@ func (s *DrawWorldSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
 				opt.ColorScale.Scale(2, 1, 1, 1)
 			} else if pools.ActiveFlag.HasEntity(unitEntity) {
 				opt.ColorScale.Scale(1, 2, 1, 1)
+			}
+
+			if pools.TweenPool.HasEntity(unitEntity) {
+				tweenComp, err := pools.TweenPool.Component(unitEntity)
+				if err != nil {
+					panic(err)
+				}
+				println("animatin")
+				val := tweenComp.Animation.Animate()
+				println(val.X, val.Y, val.Angle)
+				opt.GeoM.Translate(float64(val.X), float64(val.Y))
+				opt.GeoM.Rotate(float64(val.Angle))
 			}
 
 			view.DrawImage(img, opt)
@@ -250,78 +276,6 @@ func (s *DrawGhostsSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
 	opt.GeoM.Scale(float64(g.ViewScale()), float64(g.ViewScale()))
 	screen.DrawImage(view, opt)
 }
-
-// type DrawActiveSystem struct{}
-
-// func (s *DrawActiveSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
-// 	frameCount := g.FrameCount()
-// 	view := g.View()
-// 	for _, HighlightedEntity := range pools.ActiveFlag.Entities() {
-// 		position, err := pools.PositionPool.Component(HighlightedEntity)
-// 		if err != nil {
-// 			panic(err)
-// 		}
-
-// 		sprite, err := pools.SpritePool.Component(HighlightedEntity)
-// 		if err != nil {
-// 			panic(err)
-// 		}
-
-// 		render, err := pools.ImageRenderPool.Component(HighlightedEntity)
-// 		if err != nil {
-// 			panic(err)
-// 		}
-
-// 		options := ebiten.DrawImageOptions{}
-// 		options.GeoM.Translate(float64(position.X*16), float64(position.Y*16))
-// 		options.GeoM.Concat(render.Options.GeoM)
-
-// 		options.ColorScale = render.Options.ColorScale
-// 		options.ColorScale.Scale(1.5, 1.5, 1.5, 1)
-// 		options.Filter = render.Options.Filter
-// 		view.DrawImage(sprite.Sprite.Animate(frameCount), &options)
-// 	}
-
-// 	opt := &ebiten.DrawImageOptions{}
-// 	opt.GeoM.Scale(float64(g.ViewScale()), float64(g.ViewScale()))
-// 	screen.DrawImage(view, opt)
-// }
-
-// type DrawTargetedSystem struct{}
-
-// func (s *DrawTargetedSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
-// 	frameCount := g.FrameCount()
-// 	view := g.View()
-// 	for _, HighlightedEntity := range pools.TargetFlag.Entities() {
-// 		position, err := pools.PositionPool.Component(HighlightedEntity)
-// 		if err != nil {
-// 			panic(err)
-// 		}
-
-// 		sprite, err := pools.SpritePool.Component(HighlightedEntity)
-// 		if err != nil {
-// 			panic(err)
-// 		}
-
-// 		render, err := pools.ImageRenderPool.Component(HighlightedEntity)
-// 		if err != nil {
-// 			panic(err)
-// 		}
-
-// 		options := ebiten.DrawImageOptions{}
-// 		options.GeoM.Translate(float64(position.X*16), float64(position.Y*16))
-// 		options.GeoM.Concat(render.Options.GeoM)
-
-// 		options.ColorScale = render.Options.ColorScale
-// 		options.ColorScale.Scale(2, 1, 1, 1)
-// 		options.Filter = render.Options.Filter
-// 		view.DrawImage(sprite.Sprite.Animate(frameCount), &options)
-// 	}
-
-// 	opt := &ebiten.DrawImageOptions{}
-// 	opt.GeoM.Scale(float64(g.ViewScale()), float64(g.ViewScale()))
-// 	screen.DrawImage(view, opt)
-// }
 
 func entityImage(objectEntity ecs.Entity, frameCount int) (*ebiten.Image, *ebiten.DrawImageOptions) {
 	position, err := pools.PositionPool.Component(objectEntity)
