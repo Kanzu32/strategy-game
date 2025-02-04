@@ -41,6 +41,14 @@ func (t *TweenAnimation) Animate() TransitionValues {
 	}
 }
 
+func (t *TweenAnimation) GetValue() TransitionValues {
+	return TransitionValues{
+		X:     t.DeltaValues.X * t.CurrentFrameTime,
+		Y:     t.DeltaValues.Y * t.CurrentFrameTime,
+		Angle: t.DeltaValues.Angle * t.CurrentFrameTime,
+	}
+}
+
 func (t *TweenAnimation) IsEnded() bool {
 	return t.CurrentFrameTime >= t.FrameTime
 }
