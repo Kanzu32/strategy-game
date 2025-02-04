@@ -4,5 +4,5 @@ type TweenType uint8
 
 //go:generate stringer -type=TweenType
 const (
-	StrightLinear TweenType = iota + 1
+	Linear TweenType = iota + 1
 )
