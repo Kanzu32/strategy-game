@@ -128,10 +128,19 @@ func (s *MoveSystem) Run(g gamedata.GameData) {
 	} else if len(tiles) == 0 {
 		return
 	}
-	// tile := tiles[0]
+	tile := tiles[0]
 
 	println("addin")
-	pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 1000, 16, 0, 0)})
+	unitPos, err := pools.PositionPool.Component(unit)
+	if err != nil {
+		panic(err)
+	}
+
+	tilePos, err := pools.PositionPool.Component(tile)
+	if err != nil {
+		panic(err)
+	}
+	pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 1000, (tilePos.X-unitPos.X)*16, (tilePos.Y-unitPos.Y)*16, 0)})
 	// TODO move unit, animate with tween
 
 	for _, ent := range tiles {
