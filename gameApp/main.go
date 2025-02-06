@@ -10,6 +10,9 @@ import (
 
 // TODO WALK
 // TODO MAIN UI
+//      text input
+//      main ui
+//      states for app (ui, game)
 // TODO GAME UI
 // TODO ATTACK SYSTEM
 // TODO ...

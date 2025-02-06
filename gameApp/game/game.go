@@ -158,7 +158,9 @@ func (g *Game) RenderHeight() int {
 }
 
 func (g *Game) handleInput() {
-
+	// keys := []ebiten.Key{}
+	// inpututil.AppendJustPressedKeys(keys)
+	// keys[0].
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		xPosUI, yPosUI := g.mousePosUIScale()
 		// UI
