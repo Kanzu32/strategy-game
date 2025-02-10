@@ -4,6 +4,7 @@ import (
 	"strategy-game/util/classes"
 	"strategy-game/util/stats"
 	"strategy-game/util/turn"
+	"strategy-game/util/ui/uistate"
 )
 
 var Turn turn.Turn
@@ -41,3 +42,5 @@ var ClassStats = map[classes.Class]stats.Stats{
 		ActionCost:    1,
 	},
 }
+
+var UIState uistate.UIState = uistate.Main

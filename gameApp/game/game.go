@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"image/color"
 	"os"
 
 	c "strategy-game/game/components"
@@ -18,6 +19,9 @@ import (
 	"strategy-game/util/turn/turnstate"
 	"strategy-game/util/ui"
 
+	"github.com/ebitenui/ebitenui"
+	"github.com/ebitenui/ebitenui/image"
+	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -73,8 +77,28 @@ func NewGame(playerTeam teams.Team) *Game {
 		frameCount: 0,
 		screen:     screen{width: 640, height: 480},
 		ui:         ui.CreateGameUI(),
+		mainUI:     ebitenui.UI{},
 	}
 
+	g.mainUI.Container = widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewRowLayout(
+				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+				widget.RowLayoutOpts.Padding(widget.Insets{Top: 100, Left: 100, Right: 100, Bottom: 100}),
+				widget.RowLayoutOpts.Spacing(20),
+			),
+		),
+		// widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+	)
+
+	g.mainUI.Container.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: image.NewNineSliceColor(color.White), Pressed: image.NewNineSliceColor(color.White)}),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+	))
+	g.mainUI.Container.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: image.NewNineSliceColor(color.White), Pressed: image.NewNineSliceColor(color.White)}),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+	))
 	// VIEW
 	g.view = ebiten.NewImage(g.screen.width, g.screen.height)
 
@@ -108,6 +132,7 @@ type Game struct {
 	frameCount int
 	screen     screen
 	ui         *ui.GameUI
+	mainUI     ebitenui.UI
 	// renderWidth  int
 	// renderHeight int
 }
@@ -271,10 +296,12 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+
 	// DrawWorld(g, screen)
 	g.world.Draw(g, screen)
 	// print(screen.Bounds().Dx(), screen.Bounds().Dy())
 	g.ui.Draw(screen, g)
+	g.mainUI.Draw(screen)
 	// msg := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
 	// ebitenutil.DebugPrint(screen, msg)
 }

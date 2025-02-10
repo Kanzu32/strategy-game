@@ -3,11 +3,9 @@ package ui
 import (
 	_ "image/png"
 	"strategy-game/util/gamedata"
-	"strategy-game/util/ui/mainuistate"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/text/v2"
 )
 
 // GAME UI
@@ -193,26 +191,26 @@ func (ui *GameUI) DrawButton(button *Button, x int, y int, scale int, screen *eb
 }
 
 // MAIN UI
-type MainUI struct {
-	State mainuistate.UIState
-}
+// type MainUI struct {
+// 	State mainuistate.UIState
+// }
 
-func (ui *MainUI) DrawButton(button *Button, x int, y int, scale int, screen *ebiten.Image) {
-	button.UnscaledX = x / scale
-	button.UnscaledY = y / scale
-	opt := &ebiten.DrawImageOptions{}
-	opt.GeoM.Scale(float64(scale), float64(scale))
-	opt.GeoM.Translate(
-		float64(x),
-		float64(y))
-	screen.DrawImage(button.Image(), opt)
-}
+// func (ui *MainUI) DrawButton(button *Button, x int, y int, scale int, screen *ebiten.Image) {
+// 	button.UnscaledX = x / scale
+// 	button.UnscaledY = y / scale
+// 	opt := &ebiten.DrawImageOptions{}
+// 	opt.GeoM.Scale(float64(scale), float64(scale))
+// 	opt.GeoM.Translate(
+// 		float64(x),
+// 		float64(y))
+// 	screen.DrawImage(button.Image(), opt)
+// }
 
-func (ui *MainUI) DrawTextInput(textInput *TextInput, x int, y int, scale int, screen *ebiten.Image) {
-	textInput.UnscaledX = x / scale
-	textInput.UnscaledY = y / scale
-	text.Draw(screen, textInput.Text, textInput.Face, &textInput.Options)
-}
+// func (ui *MainUI) DrawTextInput(textInput *TextInput, x int, y int, scale int, screen *ebiten.Image) {
+// 	textInput.UnscaledX = x / scale
+// 	textInput.UnscaledY = y / scale
+// 	text.Draw(screen, textInput.Text, textInput.Face, &textInput.Options)
+// }
 
 // INPUT HANDLERS
 
@@ -260,22 +258,22 @@ func (b *Button) InBounds(x int, y int) bool {
 	return false
 }
 
-type TextInput struct {
-	Text      string
-	Face      text.Face
-	Options   text.DrawOptions
-	Focus     bool
-	UnscaledX int
-	UnscaledY int
-	Height    int
-	Width     int
-}
+// type TextInput struct {
+// 	Text      string
+// 	Face      text.Face
+// 	Options   text.DrawOptions
+// 	Focus     bool
+// 	UnscaledX int
+// 	UnscaledY int
+// 	Height    int
+// 	Width     int
+// }
 
-func (b *TextInput) InBounds(x int, y int) bool {
-	if b.UnscaledX <= x && x <= b.UnscaledX+b.Width &&
-		b.UnscaledY <= y && y <= b.UnscaledY+b.Height {
+// func (b *TextInput) InBounds(x int, y int) bool {
+// 	if b.UnscaledX <= x && x <= b.UnscaledX+b.Width &&
+// 		b.UnscaledY <= y && y <= b.UnscaledY+b.Height {
 
-		return true
-	}
-	return false
-}
+// 		return true
+// 	}
+// 	return false
+// }

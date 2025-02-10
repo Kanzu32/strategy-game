@@ -1,4 +1,4 @@
-package mainuistate
+package uistate
 
 type UIState uint8
 
