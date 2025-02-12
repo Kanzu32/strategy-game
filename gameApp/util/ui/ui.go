@@ -1,279 +1,121 @@
 package ui
 
 import (
+	"image/color"
 	_ "image/png"
+	"strategy-game/assets"
 	"strategy-game/util/gamedata"
 
+	"github.com/ebitenui/ebitenui"
+	"github.com/ebitenui/ebitenui/image"
+	"github.com/ebitenui/ebitenui/widget"
+	"github.com/golang/freetype/truetype"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"golang.org/x/image/font"
 )
 
-// GAME UI
-type GameUI struct {
-	MenuBackground *ebiten.Image
-	WalkButton     Button
-	AttackButton   Button
-	SkillButton    Button
-	PlusButton     Button
-	MinusButton    Button
-	Portraits      []*ebiten.Image
-	Skills         []*ebiten.Image
-	CurrentScale   int
+func loadFont(size float64) (font.Face, error) {
+	ttfFont, err := truetype.Parse(assets.MonogramTTF)
+	if err != nil {
+		return nil, err
+	}
+
+	return truetype.NewFace(ttfFont, &truetype.Options{
+		Size:    size,
+		DPI:     72,
+		Hinting: font.HintingFull,
+	}), nil
 }
 
-func CreateGameUI() *GameUI {
-	ui := GameUI{}
+type UI struct {
+	ui       ebitenui.UI
+	textFace *text.GoXFace
+	uiSlice  *image.NineSlice
+}
 
-	i := icon{}
-	img, _, err := ebitenutil.NewImageFromFile("assets/ui/plus.png")
+func CreateUI() UI {
+	img, _, err := ebitenutil.NewImageFromFile("assets/ui/nine_slice/nine_slice_ui_1.png")
 	if err != nil {
 		panic(err)
 	}
-	i.Active = img
 
-	img, _, err = ebitenutil.NewImageFromFile("assets/ui/scale-inactive.png")
-	if err != nil {
-		panic(err)
-	}
-	i.Inactive = img
-	ui.PlusButton = Button{Active: true, icon: i, Handler: plusHandler}
+	opt := ebiten.DrawImageOptions{}
+	opt.GeoM.Scale(3.0, 3.0)
+	newImg := ebiten.NewImage(img.Bounds().Dx()*3, img.Bounds().Dy()*3)
+	newImg.DrawImage(img, &opt)
 
-	img, _, err = ebitenutil.NewImageFromFile("assets/ui/minus.png")
-	if err != nil {
-		panic(err)
-	}
-	i.Active = img
+	uiSlice := image.NewNineSliceSimple(newImg, 6*3, 4*3)
 
-	ui.MinusButton = Button{Active: true, icon: i, Handler: minusHandler}
+	f, _ := loadFont(36)
+	u := UI{ebitenui.UI{}, text.NewGoXFace(f), uiSlice}
 
-	// BACKGROUND
-	img, _, err = ebitenutil.NewImageFromFile("assets/ui/unit-background.png")
-	if err != nil {
-		panic(err)
-	}
-	ui.MenuBackground = img
-
-	// LOAD ICONS
-
-	img, _, err = ebitenutil.NewImageFromFile("assets/ui/walk-active-icon.png")
-	if err != nil {
-		panic(err)
-	}
-	i.Active = img
-
-	img, _, err = ebitenutil.NewImageFromFile("assets/ui/walk-inactive-icon.png")
-	if err != nil {
-		panic(err)
-	}
-	i.Inactive = img
-
-	ui.WalkButton = Button{Active: true, icon: i}
-
-	img, _, err = ebitenutil.NewImageFromFile("assets/ui/attack-active-icon.png")
-	if err != nil {
-		panic(err)
-	}
-	i.Active = img
-
-	img, _, err = ebitenutil.NewImageFromFile("assets/ui/attack-inactive-icon.png")
-	if err != nil {
-		panic(err)
-	}
-	i.Inactive = img
-
-	ui.AttackButton = Button{Active: true, icon: i}
-
-	img, _, err = ebitenutil.NewImageFromFile("assets/ui/skill-test-icon.png")
-	if err != nil {
-		panic(err)
-	}
-	i.Active = img
-
-	// img, _, err = ebitenutil.NewImageFromFile("assets/ui/skill-test-icon.png")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// i.Inactive = img
-
-	ui.SkillButton = Button{Active: true, icon: i}
-
-	//PORTRAITS
-	img, _, err = ebitenutil.NewImageFromFile("assets/ui/portraits/man-portrait.png")
-	if err != nil {
-		panic(err)
-	}
-	ui.Portraits = append(ui.Portraits, img)
-
-	img, _, err = ebitenutil.NewImageFromFile("assets/ui/portraits/knight-portrait.png")
-	if err != nil {
-		panic(err)
-	}
-	ui.Portraits = append(ui.Portraits, img)
-
-	return &ui
+	return u
 }
 
-func (ui *GameUI) Draw(screen *ebiten.Image, g gamedata.GameData) {
-	screenSize := screen.Bounds().Dx()
-	menuSize := ui.MenuBackground.Bounds().Dx()
-	scale := screenSize / (menuSize * 2)
-	if scale < 2 {
-		scale = 2
-	}
-	ui.CurrentScale = scale
-
-	//unit menu
-	opt := &ebiten.DrawImageOptions{}
-	opt.GeoM.Scale(float64(scale), float64(scale))
-	opt.GeoM.Translate(float64(screenSize/2-menuSize*scale/2), float64(screen.Bounds().Dy()-ui.MenuBackground.Bounds().Dy()*scale))
-	screen.DrawImage(ui.MenuBackground, opt)
-
-	opt = &ebiten.DrawImageOptions{}
-	opt.GeoM.Scale(float64(scale), float64(scale))
-	opt.GeoM.Translate(
-		float64(screenSize/2-menuSize*scale/2),
-		float64(screen.Bounds().Dy()-ui.MenuBackground.Bounds().Dy()*scale))
-	screen.DrawImage(ui.Portraits[0], opt) //portrait
-
-	// CONTROLL BUTTONS
-	ui.DrawButton(
-		&ui.WalkButton,
-		screenSize/2-menuSize*scale/2+60*scale,
-		screen.Bounds().Dy()-ui.MenuBackground.Bounds().Dy()*scale+9*scale,
-		scale,
-		screen,
-	)
-
-	ui.DrawButton(
-		&ui.AttackButton,
-		screenSize/2-menuSize*scale/2+92*scale,
-		screen.Bounds().Dy()-ui.MenuBackground.Bounds().Dy()*scale+9*scale,
-		scale,
-		screen,
-	)
-
-	ui.DrawButton(
-		&ui.SkillButton,
-		screenSize/2-menuSize*scale/2+124*scale,
-		screen.Bounds().Dy()-ui.MenuBackground.Bounds().Dy()*scale+9*scale,
-		scale,
-		screen,
-	)
-
-	// SCALE BUTTONS
-
-	ui.DrawButton(
-		&ui.PlusButton,
-		screenSize-ui.PlusButton.Image().Bounds().Dx()*scale-3*scale,
-		screen.Bounds().Dy()/2-ui.PlusButton.Image().Bounds().Dx()*scale-10*scale,
-		scale,
-		screen,
-	)
-
-	ui.DrawButton(
-		&ui.MinusButton,
-		screenSize-ui.MinusButton.Image().Bounds().Dx()*scale-3*scale,
-		screen.Bounds().Dy()/2-ui.MinusButton.Image().Bounds().Dx()*scale+10*scale,
-		scale,
-		screen,
-	)
+func (u *UI) Draw(screen *ebiten.Image) {
+	u.ui.Draw(screen)
 }
 
-func (ui *GameUI) DrawButton(button *Button, x int, y int, scale int, screen *ebiten.Image) {
-	button.UnscaledX = x / scale
-	button.UnscaledY = y / scale
-	opt := &ebiten.DrawImageOptions{}
-	opt.GeoM.Scale(float64(scale), float64(scale))
-	opt.GeoM.Translate(
-		float64(x),
-		float64(y))
-	screen.DrawImage(button.Image(), opt)
+func (u *UI) Update() {
+	u.ui.Update()
 }
 
-// MAIN UI
-// type MainUI struct {
-// 	State mainuistate.UIState
-// }
+func (u *UI) ShowGameControls(g gamedata.GameData) {
+	u.ui.Container = widget.NewContainer(widget.ContainerOpts.Layout(widget.NewGridLayout(
+		widget.GridLayoutOpts.Columns(2),
+		widget.GridLayoutOpts.Spacing(0, 0),
+		widget.GridLayoutOpts.Stretch([]bool{true}, []bool{false}),
+	)))
 
-// func (ui *MainUI) DrawButton(button *Button, x int, y int, scale int, screen *ebiten.Image) {
-// 	button.UnscaledX = x / scale
-// 	button.UnscaledY = y / scale
-// 	opt := &ebiten.DrawImageOptions{}
-// 	opt.GeoM.Scale(float64(scale), float64(scale))
-// 	opt.GeoM.Translate(
-// 		float64(x),
-// 		float64(y))
-// 	screen.DrawImage(button.Image(), opt)
-// }
+	u.ui.Container.AddChild(widget.NewContainer())
 
-// func (ui *MainUI) DrawTextInput(textInput *TextInput, x int, y int, scale int, screen *ebiten.Image) {
-// 	textInput.UnscaledX = x / scale
-// 	textInput.UnscaledY = y / scale
-// 	text.Draw(screen, textInput.Text, textInput.Face, &textInput.Options)
-// }
+	u.ui.Container.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice, Hover: u.uiSlice, Disabled: u.uiSlice}),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.ClickedHandler(g.ViewScaleInc),
+	))
 
-// INPUT HANDLERS
+	u.ui.Container.AddChild(widget.NewContainer())
 
-type handler func(g gamedata.GameData)
+	u.ui.Container.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice}),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.ClickedHandler(g.ViewScaleDec),
+	))
 
-func plusHandler(g gamedata.GameData) {
-	g.ViewScaleInc()
 }
 
-func minusHandler(g gamedata.GameData) {
-	g.ViewScaleDec()
+func (u *UI) GetFocused() widget.Focuser {
+	return u.ui.GetFocusedWidget()
 }
 
-// UI UTILS
-type icon struct {
-	Active   *ebiten.Image
-	Inactive *ebiten.Image
+func (u *UI) ShowMainMenu() {
+	u.ui.Container = widget.NewContainer(widget.ContainerOpts.Layout(widget.NewRowLayout(
+		widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+		widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(100)),
+		widget.RowLayoutOpts.Spacing(20),
+	)))
+
+	u.ui.Container.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice}),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.Text("Play Online", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
+	))
+
+	u.ui.Container.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice}),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.Text("Play Offline", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
+	))
+
+	u.ui.Container.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice}),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.Text("Settings", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
+	))
 }
-
-type Button struct {
-	Active    bool
-	Handler   handler
-	icon      icon
-	UnscaledX int
-	UnscaledY int
-}
-
-func (b *Button) Click(g gamedata.GameData) {
-	b.Handler(g)
-}
-
-func (b *Button) Image() *ebiten.Image {
-	if b.Active {
-		return b.icon.Active
-	}
-	return b.icon.Inactive
-}
-
-func (b *Button) InBounds(x int, y int) bool {
-	if b.UnscaledX <= x && x <= b.UnscaledX+b.Image().Bounds().Dx() &&
-		b.UnscaledY <= y && y <= b.UnscaledY+b.Image().Bounds().Dy() {
-
-		return true
-	}
-	return false
-}
-
-// type TextInput struct {
-// 	Text      string
-// 	Face      text.Face
-// 	Options   text.DrawOptions
-// 	Focus     bool
-// 	UnscaledX int
-// 	UnscaledY int
-// 	Height    int
-// 	Width     int
-// }
-
-// func (b *TextInput) InBounds(x int, y int) bool {
-// 	if b.UnscaledX <= x && x <= b.UnscaledX+b.Width &&
-// 		b.UnscaledY <= y && y <= b.UnscaledY+b.Height {
-
-// 		return true
-// 	}
-// 	return false
-// }

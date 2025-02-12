@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 
+	"strategy-game/assets"
 	c "strategy-game/game/components"
 	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
@@ -18,8 +19,6 @@ import (
 	"strategy-game/util/turn/turnstate"
 	"strategy-game/util/ui"
 
-	"github.com/ebitenui/ebitenui"
-	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -75,41 +74,10 @@ func NewGame(playerTeam teams.Team) *Game {
 		viewScale:  2,
 		frameCount: 0,
 		screen:     screen{width: 640, height: 480},
-		ui:         ui.CreateGameUI(),
-		mainUI:     ebitenui.UI{},
+		// ui:         ui.CreateGameUI(),
+		ui: ui.CreateUI(),
 	}
 
-	g.mainUI.Container = widget.NewContainer(
-		widget.ContainerOpts.Layout(
-			widget.NewRowLayout(
-				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-				widget.RowLayoutOpts.Padding(widget.Insets{Top: 100, Left: 100, Right: 100, Bottom: 100}),
-				widget.RowLayoutOpts.Spacing(20),
-			),
-		),
-		// widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
-	)
-
-	img, _, err := ebitenutil.NewImageFromFile("assets/ui/nine_slice/nine_slice_ui_1.png")
-	if err != nil {
-		panic(err)
-	}
-
-	opt := ebiten.DrawImageOptions{}
-	opt.GeoM.Scale(4.0, 4.0)
-	newImg := ebiten.NewImage(img.Bounds().Dx()*4, img.Bounds().Dy()*4)
-	newImg.DrawImage(img, &opt)
-
-	uiSlice := image.NewNineSliceSimple(newImg, 6*4, 4*4)
-
-	g.mainUI.Container.AddChild(widget.NewButton(
-		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: uiSlice, Pressed: uiSlice}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
-	))
-	g.mainUI.Container.AddChild(widget.NewButton(
-		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: uiSlice, Pressed: uiSlice}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
-	))
 	// VIEW
 	g.view = ebiten.NewImage(g.screen.width, g.screen.height)
 
@@ -117,22 +85,24 @@ func NewGame(playerTeam teams.Team) *Game {
 	InitPools(g.world)
 
 	tilesets := tile.CreateTilesetArray([]string{
-		"assets/tiles/tilesets/1_ground-tileset.json",
-		"assets/tiles/tilesets/2_decals-tileset.json",
-		"assets/tiles/tilesets/3_active-objects-tileset.json",
-		"assets/tiles/tilesets/4_objects1-tileset.json",
-		"assets/tiles/tilesets/5_objects2-tileset.json",
-		"assets/tiles/tilesets/6_objects3-tileset.json",
-		"assets/tiles/tilesets/7_objects4-tileset.json",
-		"assets/tiles/tilesets/8_objects5-tileset.json",
-		"assets/tiles/tilesets/9_objects6-tileset.json",
-		"assets/tiles/tilesets/10_util-tileset.json",
+		assets.GroundTileset,
+		assets.DecalsTileset,
+		assets.ActiveObject,
+		assets.ObjectsTileset1,
+		assets.ObjectsTileset2,
+		assets.ObjectsTileset3,
+		assets.ObjectsTileset4,
+		assets.ObjectsTileset5,
+		assets.ObjectsTileset6,
+		assets.UtilTileset,
 	})
 
-	InitTileEntities(tilesets, "assets/tiles/tilemaps/tilemap.json")
+	InitTileEntities(tilesets, assets.Tilemap)
 	InitStartData(playerTeam)
 	InitSystems(g.world)
 
+	// g.mainUI.ShowMainMenu()
+	g.ui.ShowGameControls(g)
 	return g
 }
 
@@ -142,8 +112,7 @@ type Game struct {
 	viewScale  int
 	frameCount int
 	screen     screen
-	ui         *ui.GameUI
-	mainUI     ebitenui.UI
+	ui         ui.UI
 	// renderWidth  int
 	// renderHeight int
 }
@@ -165,23 +134,17 @@ func (g *Game) ViewScale() int {
 	return g.viewScale
 }
 
-func (g *Game) ViewScaleInc() {
+func (g *Game) ViewScaleInc(args *widget.ButtonClickedEventArgs) {
+	println("inc")
 	if g.viewScale != 10 {
 		g.viewScale++
-		g.ui.MinusButton.Active = true
-	}
-	if g.viewScale == 10 {
-		g.ui.PlusButton.Active = false
 	}
 }
 
-func (g *Game) ViewScaleDec() {
+func (g *Game) ViewScaleDec(args *widget.ButtonClickedEventArgs) {
+	println("dec")
 	if g.viewScale != 1 {
 		g.viewScale--
-		g.ui.PlusButton.Active = true
-	}
-	if g.viewScale == 1 {
-		g.ui.MinusButton.Active = false
 	}
 }
 
@@ -197,16 +160,14 @@ func (g *Game) handleInput() {
 	// keys := []ebiten.Key{}
 	// inpututil.AppendJustPressedKeys(keys)
 	// keys[0].
+
+	// focused := g.mainUI.GetFocused()
+
+	// if btn, ok := focused.(*widget.Button); ok {
+	// 	btn.Click()
+	// }
+
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		xPosUI, yPosUI := g.mousePosUIScale()
-		// UI
-		if g.ui.PlusButton.InBounds(xPosUI, yPosUI) {
-			g.ui.PlusButton.Click(g)
-			return
-		} else if g.ui.MinusButton.InBounds(xPosUI, yPosUI) {
-			g.ui.MinusButton.Click(g)
-			return
-		}
 
 		// ENT
 
@@ -288,11 +249,6 @@ func (g *Game) handleInput() {
 	}
 }
 
-func (g *Game) mousePosUIScale() (int, int) {
-	x, y := ebiten.CursorPosition()
-	return x / g.ui.CurrentScale, y / g.ui.CurrentScale
-}
-
 func (g *Game) mousePosGameScale() (int, int) {
 	x, y := ebiten.CursorPosition()
 	return x / g.viewScale, y / g.viewScale
@@ -301,6 +257,7 @@ func (g *Game) mousePosGameScale() (int, int) {
 func (g *Game) Update() error {
 	g.frameCount++
 	g.handleInput()
+	g.ui.Update()
 	g.world.Update(g)
 
 	return nil
@@ -311,8 +268,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// DrawWorld(g, screen)
 	g.world.Draw(g, screen)
 	// print(screen.Bounds().Dx(), screen.Bounds().Dy())
-	g.ui.Draw(screen, g)
-	g.mainUI.Draw(screen)
+	g.ui.Draw(screen)
 	// msg := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
 	// ebitenutil.DebugPrint(screen, msg)
 }
@@ -449,7 +405,7 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 				// print(class.String())
 
 				// TODO SKINS
-				img, _, err := ebitenutil.NewImageFromFile("assets/img/" + team.String() + ".png")
+				img, _, err := ebitenutil.NewImageFromFile(assets.Characters[team])
 				if err != nil {
 					panic(err)
 				}

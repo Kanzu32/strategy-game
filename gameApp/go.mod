@@ -12,6 +12,7 @@ require (
 	github.com/ebitengine/purego v0.8.1 // indirect
 	github.com/ebitenui/ebitenui v0.6.0 // indirect
 	github.com/go-text/typesetting v0.2.0 // indirect
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/jezek/xgb v1.1.1 // indirect
 	golang.org/x/exp v0.0.0-20240808152545-0cdaa3abc0fa // indirect
 	golang.org/x/image v0.21.0 // indirect
