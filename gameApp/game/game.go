@@ -2,7 +2,6 @@ package game
 
 import (
 	"encoding/json"
-	"image/color"
 	"os"
 
 	c "strategy-game/game/components"
@@ -91,12 +90,24 @@ func NewGame(playerTeam teams.Team) *Game {
 		// widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
 	)
 
+	img, _, err := ebitenutil.NewImageFromFile("assets/ui/nine_slice/nine_slice_ui_1.png")
+	if err != nil {
+		panic(err)
+	}
+
+	opt := ebiten.DrawImageOptions{}
+	opt.GeoM.Scale(4.0, 4.0)
+	newImg := ebiten.NewImage(img.Bounds().Dx()*4, img.Bounds().Dy()*4)
+	newImg.DrawImage(img, &opt)
+
+	uiSlice := image.NewNineSliceSimple(newImg, 6*4, 4*4)
+
 	g.mainUI.Container.AddChild(widget.NewButton(
-		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: image.NewNineSliceColor(color.White), Pressed: image.NewNineSliceColor(color.White)}),
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: uiSlice, Pressed: uiSlice}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
 	))
 	g.mainUI.Container.AddChild(widget.NewButton(
-		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: image.NewNineSliceColor(color.White), Pressed: image.NewNineSliceColor(color.White)}),
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: uiSlice, Pressed: uiSlice}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
 	))
 	// VIEW
