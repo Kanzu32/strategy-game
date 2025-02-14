@@ -25,3 +25,6 @@ var Characters = map[teams.Team]string{
 	teams.Blue: "assets/img/blue.png",
 	teams.Red:  "assets/img/red.png",
 }
+
+var MainMenuBackground = "assets/ui/nine_slice/main_background.png"
+var MainUIButton = "assets/ui/nine_slice/nine_slice_ui_1.png"

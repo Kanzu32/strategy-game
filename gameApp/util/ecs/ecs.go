@@ -6,7 +6,6 @@ import (
 	"log"
 	"strategy-game/util/ecs/parray"
 	"strategy-game/util/ecs/psize"
-	"strategy-game/util/gamedata"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -53,11 +52,11 @@ func (e Entity) String() string {
 // SYSTEM
 
 type System interface {
-	Run(g gamedata.GameData)
+	Run()
 }
 
 type RenderSystem interface {
-	Run(g gamedata.GameData, screen *ebiten.Image)
+	Run(screen *ebiten.Image)
 }
 
 // WORLD
@@ -109,15 +108,15 @@ func AddRenderSystem(w *World, renderSystem RenderSystem) {
 	w.renderSystems = append(w.renderSystems, renderSystem)
 }
 
-func (w *World) Update(g gamedata.GameData) {
+func (w *World) Update() {
 	for _, s := range w.systems {
-		s.Run(g)
+		s.Run()
 	}
 }
 
-func (w *World) Draw(g gamedata.GameData, screen *ebiten.Image) {
+func (w *World) Draw(screen *ebiten.Image) {
 	for _, s := range w.renderSystems {
-		s.Run(g, screen)
+		s.Run(screen)
 	}
 }
 

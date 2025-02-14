@@ -4,7 +4,9 @@ import (
 	"image/color"
 	_ "image/png"
 	"strategy-game/assets"
-	"strategy-game/util/gamedata"
+	"strategy-game/game/singletons"
+	"strategy-game/util/gamemode"
+	"strategy-game/util/ui/uistate"
 
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
@@ -30,13 +32,14 @@ func loadFont(size float64) (font.Face, error) {
 }
 
 type UI struct {
-	ui       ebitenui.UI
-	textFace *text.GoXFace
-	uiSlice  *image.NineSlice
+	ui              ebitenui.UI
+	textFace        *text.GoXFace
+	uiSlice         *image.NineSlice
+	backgroundSlice *image.NineSlice
 }
 
 func CreateUI() UI {
-	img, _, err := ebitenutil.NewImageFromFile("assets/ui/nine_slice/nine_slice_ui_1.png")
+	img, _, err := ebitenutil.NewImageFromFile(assets.MainUIButton)
 	if err != nil {
 		panic(err)
 	}
@@ -48,8 +51,15 @@ func CreateUI() UI {
 
 	uiSlice := image.NewNineSliceSimple(newImg, 6*3, 4*3)
 
+	backgroundImage, _, err := ebitenutil.NewImageFromFile(assets.MainMenuBackground)
+	if err != nil {
+		panic(err)
+	}
+
+	backgroundSlice := image.NewNineSliceSimple(backgroundImage, 10, 10)
+
 	f, _ := loadFont(36)
-	u := UI{ebitenui.UI{}, text.NewGoXFace(f), uiSlice}
+	u := UI{ebitenui.UI{}, text.NewGoXFace(f), uiSlice, backgroundSlice}
 
 	return u
 }
@@ -62,7 +72,7 @@ func (u *UI) Update() {
 	u.ui.Update()
 }
 
-func (u *UI) ShowGameControls(g gamedata.GameData) {
+func (u *UI) ShowGameControls() {
 	u.ui.Container = widget.NewContainer(widget.ContainerOpts.Layout(widget.NewGridLayout(
 		widget.GridLayoutOpts.Columns(2),
 		widget.GridLayoutOpts.Spacing(0, 0),
@@ -74,7 +84,13 @@ func (u *UI) ShowGameControls(g gamedata.GameData) {
 	u.ui.Container.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice, Hover: u.uiSlice, Disabled: u.uiSlice}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
-		widget.ButtonOpts.ClickedHandler(g.ViewScaleInc),
+		// widget.ButtonOpts.ClickedHandler(g.ViewScaleInc),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("inc")
+			if singletons.View.Scale != 10 {
+				singletons.View.Scale++
+			}
+		}),
 	))
 
 	u.ui.Container.AddChild(widget.NewContainer())
@@ -82,7 +98,12 @@ func (u *UI) ShowGameControls(g gamedata.GameData) {
 	u.ui.Container.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
-		widget.ButtonOpts.ClickedHandler(g.ViewScaleDec),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("dec")
+			if singletons.View.Scale != 1 {
+				singletons.View.Scale--
+			}
+		}),
 	))
 
 }
@@ -92,11 +113,17 @@ func (u *UI) GetFocused() widget.Focuser {
 }
 
 func (u *UI) ShowMainMenu() {
-	u.ui.Container = widget.NewContainer(widget.ContainerOpts.Layout(widget.NewRowLayout(
-		widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-		widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(100)),
-		widget.RowLayoutOpts.Spacing(20),
-	)))
+
+	u.ui.Container = widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewRowLayout(
+				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+				widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(100)),
+				widget.RowLayoutOpts.Spacing(20),
+			),
+		),
+		// widget.ContainerOpts.BackgroundImage(u.backgroundSlice),
+	)
 
 	u.ui.Container.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice}),
@@ -110,6 +137,12 @@ func (u *UI) ShowMainMenu() {
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
 		widget.ButtonOpts.Text("Play Offline", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("play offline")
+			singletons.AppState.GameMode = gamemode.Local
+			singletons.AppState.UIState = uistate.Game
+			singletons.AppState.StateChanged = true
+		}),
 	))
 
 	u.ui.Container.AddChild(widget.NewButton(
@@ -117,5 +150,10 @@ func (u *UI) ShowMainMenu() {
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
 		widget.ButtonOpts.Text("Settings", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("play online")
+			// singletons.UIState = uistate.Game
+			// singletons.GameMode = gamemode.Online
+		}),
 	))
 }

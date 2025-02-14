@@ -2,9 +2,12 @@ package singletons
 
 import (
 	"strategy-game/util/classes"
+	"strategy-game/util/gamemode"
 	"strategy-game/util/stats"
 	"strategy-game/util/turn"
 	"strategy-game/util/ui/uistate"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 var Turn turn.Turn
@@ -43,4 +46,34 @@ var ClassStats = map[classes.Class]stats.Stats{
 	},
 }
 
-var UIState uistate.UIState = uistate.Main
+// var UIState uistate.UIState = uistate.Main
+
+// var GameMode gamemode.GameMode = gamemode.Local
+
+var AppState struct {
+	UIState      uistate.UIState
+	GameMode     gamemode.GameMode
+	StateChanged bool
+}
+
+var FrameCount int = 0
+
+var Render struct {
+	Width  int
+	Height int
+}
+
+var View struct {
+	Image *ebiten.Image
+	Scale int
+}
+
+var Settings struct {
+	DefaultGameScale int
+	UIScale          int
+	Sound            int
+}
+
+// var World *ecs.World
+
+// var UI ui.UI

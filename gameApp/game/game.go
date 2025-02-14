@@ -18,8 +18,8 @@ import (
 	"strategy-game/util/turn"
 	"strategy-game/util/turn/turnstate"
 	"strategy-game/util/ui"
+	"strategy-game/util/ui/uistate"
 
-	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -37,7 +37,6 @@ func InitPools(w *ecs.World) {
 	pools.EnergyPool = ecs.CreateComponentPool[c.Energy](w, psize.Page128)
 	pools.TweenPool = ecs.CreateComponentPool[c.Tween](w, psize.Page128)
 
-	// pools.SolidFlag = ecs.CreateFlagPool(w, psize.Page512)
 	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
 	pools.WallFlag = ecs.CreateFlagPool(w, psize.Page1024)
 	pools.SoftFlag = ecs.CreateFlagPool(w, psize.Page16)
@@ -46,8 +45,6 @@ func InitPools(w *ecs.World) {
 	pools.ActiveFlag = ecs.CreateFlagPool(w, psize.Page64)
 	pools.TargetUnitFlag = ecs.CreateFlagPool(w, psize.Page8)
 	pools.TargetObjectFlag = ecs.CreateFlagPool(w, psize.Page128)
-	// isFire := ecs.CreateFlagPool(w, psize.Page32)
-	// isIce := ecs.CreateFlagPool(w, psize.Page32)
 }
 
 // INIT SYSTEMS IN ORDER
@@ -65,23 +62,32 @@ func InitSystems(w *ecs.World) {
 
 func InitStartData(playerTeam teams.Team) {
 	singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: playerTeam, State: turnstate.Input}
-
 }
 
-func NewGame(playerTeam teams.Team) *Game {
+func NewGame() *Game {
 	g := &Game{
-		world:      ecs.CreateWorld(),
-		viewScale:  2,
-		frameCount: 0,
-		screen:     screen{width: 640, height: 480},
-		// ui:         ui.CreateGameUI(),
-		ui: ui.CreateUI(),
+		world: ecs.CreateWorld(),
+		ui:    ui.CreateUI(),
 	}
-
+	singletons.Render.Height = 640
+	singletons.Render.Width = 480
 	// VIEW
-	g.view = ebiten.NewImage(g.screen.width, g.screen.height)
+	singletons.View.Image = ebiten.NewImage(singletons.Render.Width, singletons.Render.Height)
+	singletons.View.Scale = 2
 
+	g.ui.ShowMainMenu()
+	// g.ui.ShowGameControls()
+	return g
+}
+
+type Game struct {
+	world *ecs.World
+	ui    ui.UI
+}
+
+func (g *Game) StartGame() {
 	// ECS THINGS
+	g.world = ecs.CreateWorld()
 	InitPools(g.world)
 
 	tilesets := tile.CreateTilesetArray([]string{
@@ -98,75 +104,11 @@ func NewGame(playerTeam teams.Team) *Game {
 	})
 
 	InitTileEntities(tilesets, assets.Tilemap)
-	InitStartData(playerTeam)
+	InitStartData(teams.Blue)
 	InitSystems(g.world)
-
-	// g.mainUI.ShowMainMenu()
-	g.ui.ShowGameControls(g)
-	return g
-}
-
-type Game struct {
-	world      *ecs.World
-	view       *ebiten.Image
-	viewScale  int
-	frameCount int
-	screen     screen
-	ui         ui.UI
-	// renderWidth  int
-	// renderHeight int
-}
-
-type screen struct {
-	width  int
-	height int
-}
-
-func (g *Game) FrameCount() int {
-	return g.frameCount
-}
-
-func (g *Game) View() *ebiten.Image {
-	return g.view
-}
-
-func (g *Game) ViewScale() int {
-	return g.viewScale
-}
-
-func (g *Game) ViewScaleInc(args *widget.ButtonClickedEventArgs) {
-	println("inc")
-	if g.viewScale != 10 {
-		g.viewScale++
-	}
-}
-
-func (g *Game) ViewScaleDec(args *widget.ButtonClickedEventArgs) {
-	println("dec")
-	if g.viewScale != 1 {
-		g.viewScale--
-	}
-}
-
-func (g *Game) RenderWidth() int {
-	return g.screen.width
-}
-
-func (g *Game) RenderHeight() int {
-	return g.screen.height
 }
 
 func (g *Game) handleInput() {
-	// keys := []ebiten.Key{}
-	// inpututil.AppendJustPressedKeys(keys)
-	// keys[0].
-
-	// focused := g.mainUI.GetFocused()
-
-	// if btn, ok := focused.(*widget.Button); ok {
-	// 	btn.Click()
-	// }
-
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 
 		// ENT
@@ -251,32 +193,45 @@ func (g *Game) handleInput() {
 
 func (g *Game) mousePosGameScale() (int, int) {
 	x, y := ebiten.CursorPosition()
-	return x / g.viewScale, y / g.viewScale
+	return x / singletons.View.Scale, y / singletons.View.Scale
 }
 
 func (g *Game) Update() error {
-	g.frameCount++
-	g.handleInput()
+	if singletons.AppState.StateChanged {
+		switch singletons.AppState.UIState {
+		case uistate.Game:
+			g.StartGame()
+			g.ui.ShowGameControls()
+		case uistate.Main:
+			g.ui.ShowMainMenu()
+		}
+		singletons.AppState.StateChanged = false
+	}
+
+	if singletons.AppState.UIState == uistate.Game {
+		singletons.FrameCount++
+		g.handleInput()
+		g.world.Update()
+	}
+
 	g.ui.Update()
-	g.world.Update(g)
 
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-
-	// DrawWorld(g, screen)
-	g.world.Draw(g, screen)
-	// print(screen.Bounds().Dx(), screen.Bounds().Dy())
+	if singletons.AppState.UIState == uistate.Game {
+		g.world.Draw(screen)
+	}
 	g.ui.Draw(screen)
 	// msg := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
 	// ebitenutil.DebugPrint(screen, msg)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	g.screen.width = outsideWidth
-	g.screen.height = outsideHeight
-	return g.screen.width, g.screen.height
+	singletons.Render.Width = outsideWidth
+	singletons.Render.Height = outsideHeight
+	return singletons.Render.Width, singletons.Render.Height
 }
 
 func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
