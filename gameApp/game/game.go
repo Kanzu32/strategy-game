@@ -36,6 +36,8 @@ func InitPools(w *ecs.World) {
 	pools.ClassPool = ecs.CreateComponentPool[c.Class](w, psize.Page16)
 	pools.EnergyPool = ecs.CreateComponentPool[c.Energy](w, psize.Page128)
 	pools.TweenPool = ecs.CreateComponentPool[c.Tween](w, psize.Page128)
+	pools.MovePool = ecs.CreateComponentPool[c.MoveDireaction](w, psize.Page128)
+	// pools.StandOnPool = ecs.CreateComponentPool[c.StandOn](w, psize.Page64)
 
 	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
 	pools.WallFlag = ecs.CreateFlagPool(w, psize.Page1024)
@@ -56,7 +58,8 @@ func InitSystems(w *ecs.World) {
 	ecs.AddSystem(w, &systems.TurnSystem{})
 	ecs.AddSystem(w, &systems.MarkActiveUnitsSystem{})
 	ecs.AddSystem(w, &systems.MarkActiveTilesSystem{})
-	ecs.AddSystem(w, &systems.MoveSystem{})
+	ecs.AddSystem(w, &systems.TweenMoveSystem{})
+	ecs.AddSystem(w, &systems.UnitMoveSystem{})
 
 }
 
@@ -76,7 +79,7 @@ func NewGame() *Game {
 	singletons.View.Scale = 2
 
 	g.ui.ShowMainMenu()
-	// g.ui.ShowGameControls()
+	// g.ui.ShowLogin()
 	return g
 }
 
@@ -204,6 +207,8 @@ func (g *Game) Update() error {
 			g.ui.ShowGameControls()
 		case uistate.Main:
 			g.ui.ShowMainMenu()
+		case uistate.Login:
+			g.ui.ShowLogin()
 		}
 		singletons.AppState.StateChanged = false
 	}
@@ -446,6 +451,8 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 
 				pools.UnitFlag.AddExistingEntity(unitEntity)
 				occupiedComp.UnitObject = &unitEntity
+
+				// pools.StandOnPool.AddExistingEntity(unitEntity, c.StandOn{Tile: &tileEntity})
 			}
 		}
 		// OCCUPIED by any objects

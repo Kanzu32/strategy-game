@@ -103,9 +103,9 @@ func (s *MarkActiveTilesSystem) Run() {
 	}
 }
 
-type MoveSystem struct{}
+type TweenMoveSystem struct{}
 
-func (s *MoveSystem) Run() {
+func (s *TweenMoveSystem) Run() {
 
 	if singletons.Turn.State != turnstate.Action {
 		return
@@ -139,12 +139,82 @@ func (s *MoveSystem) Run() {
 	if err != nil {
 		panic(err)
 	}
+
 	pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 1000, (tilePos.X-unitPos.X)*16, (tilePos.Y-unitPos.Y)*16, 0)})
-	// TODO move unit, animate with tween
 
 	for _, ent := range tiles {
 		pools.TargetObjectFlag.RemoveEntity(ent)
 	}
+
+	pools.MovePool.AddExistingEntity(unit, components.MoveDireaction{X: int8(tilePos.X - unitPos.X), Y: int8(tilePos.Y - unitPos.Y)})
+}
+
+type UnitMoveSystem struct{}
+
+func (s *UnitMoveSystem) Run() {
+
+	if singletons.Turn.State != turnstate.Action {
+		return
+	}
+
+	// get targeted unit
+	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{})
+	if len(units) > 1 {
+		panic("More than one targeted units")
+	} else if len(units) == 0 {
+		panic("Zero targeted units")
+	}
+	unit := units[0]
+
+	if !pools.TweenPool.HasEntity(unit) {
+		return
+	}
+
+	t, err := pools.TweenPool.Component(unit)
+	if err != nil {
+		panic(err)
+	}
+
+	if t.Animation.IsEnded() {
+		unitPos, err := pools.PositionPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		move, err := pools.MovePool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, entity := range pools.OccupiedPool.Entities() {
+			occupied, err := pools.OccupiedPool.Component(entity)
+			if err != nil {
+				panic(err)
+			}
+
+			pos, err := pools.PositionPool.Component(entity)
+			if err != nil {
+				panic(err)
+			}
+
+			if occupied.UnitObject == &unit && pos.X == unitPos.X && pos.Y == unitPos.Y {
+				occupied.UnitObject = nil
+			}
+
+			if occupied.UnitObject == nil && pos.X == unitPos.X+int(move.X) && pos.Y == unitPos.Y+int(move.Y) {
+				occupied.UnitObject = &unit
+			}
+		}
+
+		unitPos.X += int(move.X)
+		unitPos.Y += int(move.Y)
+
+		pools.TweenPool.RemoveEntity(unit)
+		pools.MovePool.RemoveEntity(unit)
+
+		singletons.Turn.State = turnstate.Input
+	}
+
 }
 
 // ###

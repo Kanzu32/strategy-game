@@ -8,17 +8,13 @@ import (
 )
 
 // TODO WALK
-// TODO MAIN UI
-//      text input
-//      main ui
-//      states for app (ui, game)
 // TODO GAME UI
 // TODO ATTACK SYSTEM
 // TODO ...
 
 func main() {
 	ebiten.SetWindowSize(640, 480)
-	// ebiten.SetWindowTitle("Смутьяны!")
+	ebiten.SetWindowTitle("Смутьяны!")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	if err := ebiten.RunGame(game.NewGame()); err != nil {
 		log.Fatal(err)

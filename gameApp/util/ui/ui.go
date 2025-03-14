@@ -3,6 +3,7 @@ package ui
 import (
 	"image/color"
 	_ "image/png"
+	"regexp"
 	"strategy-game/assets"
 	"strategy-game/game/singletons"
 	"strategy-game/util/gamemode"
@@ -32,34 +33,86 @@ func loadFont(size float64) (font.Face, error) {
 }
 
 type UI struct {
-	ui              ebitenui.UI
-	textFace        *text.GoXFace
-	uiSlice         *image.NineSlice
-	backgroundSlice *image.NineSlice
+	ui               ebitenui.UI
+	textFace         *text.GoXFace
+	sliceStandard    *image.NineSlice
+	sliceIron        *image.NineSlice
+	sliceWood        *image.NineSlice
+	slicePaper       *image.NineSlice
+	sliceIronLight   *image.NineSlice
+	backButtonImage  *ebiten.Image
+	plusButtonImage  *ebiten.Image
+	minusButtonImage *ebiten.Image
 }
 
 func CreateUI() UI {
-	img, _, err := ebitenutil.NewImageFromFile(assets.MainUIButton)
-	if err != nil {
-		panic(err)
-	}
+	f, _ := loadFont(36)
 
 	opt := ebiten.DrawImageOptions{}
 	opt.GeoM.Scale(3.0, 3.0)
-	newImg := ebiten.NewImage(img.Bounds().Dx()*3, img.Bounds().Dy()*3)
-	newImg.DrawImage(img, &opt)
 
-	uiSlice := image.NewNineSliceSimple(newImg, 6*3, 4*3)
-
-	backgroundImage, _, err := ebitenutil.NewImageFromFile(assets.MainMenuBackground)
+	img, _, err := ebitenutil.NewImageFromFile(assets.NineSliceStandard)
 	if err != nil {
 		panic(err)
 	}
+	newImg := ebiten.NewImage(img.Bounds().Dx()*3, img.Bounds().Dy()*3)
+	newImg.DrawImage(img, &opt)
+	sliceStandard := image.NewNineSliceSimple(newImg, 6*3, 4*3)
 
-	backgroundSlice := image.NewNineSliceSimple(backgroundImage, 10, 10)
+	img, _, err = ebitenutil.NewImageFromFile(assets.NineSliceIron)
+	if err != nil {
+		panic(err)
+	}
+	newImg = ebiten.NewImage(img.Bounds().Dx()*3, img.Bounds().Dy()*3)
+	newImg.DrawImage(img, &opt)
+	sliceIron := image.NewNineSliceSimple(newImg, 6*3, 4*3)
 
-	f, _ := loadFont(36)
-	u := UI{ebitenui.UI{}, text.NewGoXFace(f), uiSlice, backgroundSlice}
+	img, _, err = ebitenutil.NewImageFromFile(assets.NineSliceWood)
+	if err != nil {
+		panic(err)
+	}
+	newImg = ebiten.NewImage(img.Bounds().Dx()*3, img.Bounds().Dy()*3)
+	newImg.DrawImage(img, &opt)
+	sliceWood := image.NewNineSliceSimple(newImg, 6*3, 4*3)
+
+	img, _, err = ebitenutil.NewImageFromFile(assets.NineSlicePaper)
+	if err != nil {
+		panic(err)
+	}
+	newImg = ebiten.NewImage(img.Bounds().Dx()*3, img.Bounds().Dy()*3)
+	newImg.DrawImage(img, &opt)
+	slicePaper := image.NewNineSliceSimple(newImg, 6*3, 4*3)
+
+	img, _, err = ebitenutil.NewImageFromFile(assets.NineSliceIronLight)
+	if err != nil {
+		panic(err)
+	}
+	newImg = ebiten.NewImage(img.Bounds().Dx()*3, img.Bounds().Dy()*3)
+	newImg.DrawImage(img, &opt)
+	sliceIronLight := image.NewNineSliceSimple(newImg, 3*3, 10*3)
+
+	img, _, err = ebitenutil.NewImageFromFile(assets.BackIcon)
+	if err != nil {
+		panic(err)
+	}
+	backButton := ebiten.NewImage(img.Bounds().Dx()*3, img.Bounds().Dy()*3)
+	backButton.DrawImage(img, &opt)
+
+	img, _, err = ebitenutil.NewImageFromFile(assets.PlusIcon)
+	if err != nil {
+		panic(err)
+	}
+	plusButton := ebiten.NewImage(img.Bounds().Dx()*3, img.Bounds().Dy()*3)
+	plusButton.DrawImage(img, &opt)
+
+	img, _, err = ebitenutil.NewImageFromFile(assets.MinusIcon)
+	if err != nil {
+		panic(err)
+	}
+	minusButton := ebiten.NewImage(img.Bounds().Dx()*3, img.Bounds().Dy()*3)
+	minusButton.DrawImage(img, &opt)
+
+	u := UI{ebitenui.UI{}, text.NewGoXFace(f), sliceStandard, sliceIron, sliceWood, slicePaper, sliceIronLight, backButton, plusButton, minusButton}
 
 	return u
 }
@@ -82,8 +135,12 @@ func (u *UI) ShowGameControls() {
 	u.ui.Container.AddChild(widget.NewContainer())
 
 	u.ui.Container.AddChild(widget.NewButton(
-		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice, Hover: u.uiSlice, Disabled: u.uiSlice}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.sliceIronLight, Pressed: u.sliceIronLight, Hover: u.sliceIronLight, Disabled: u.sliceIronLight}),
+		widget.ButtonOpts.Graphic(u.plusButtonImage),
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true}),
+			widget.WidgetOpts.MinSize(42, 42),
+		),
 		// widget.ButtonOpts.ClickedHandler(g.ViewScaleInc),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("inc")
@@ -96,8 +153,12 @@ func (u *UI) ShowGameControls() {
 	u.ui.Container.AddChild(widget.NewContainer())
 
 	u.ui.Container.AddChild(widget.NewButton(
-		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.sliceIronLight, Pressed: u.sliceIronLight, Hover: u.sliceIronLight, Disabled: u.sliceIronLight}),
+		widget.ButtonOpts.Graphic(u.minusButtonImage),
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true}),
+			widget.WidgetOpts.MinSize(42, 42),
+		),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("dec")
 			if singletons.View.Scale != 1 {
@@ -122,18 +183,18 @@ func (u *UI) ShowMainMenu() {
 				widget.RowLayoutOpts.Spacing(20),
 			),
 		),
-		// widget.ContainerOpts.BackgroundImage(u.backgroundSlice),
+		// widget.ContainerOpts.BackgroundImage(u.slicePaper),
 	)
 
 	u.ui.Container.AddChild(widget.NewButton(
-		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice}),
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.sliceStandard, Pressed: u.sliceStandard}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
-		widget.ButtonOpts.Text("Play Online", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.Text("Play online", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 	))
 
 	u.ui.Container.AddChild(widget.NewButton(
-		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice}),
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.sliceStandard, Pressed: u.sliceStandard}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
 		widget.ButtonOpts.Text("Play Offline", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
@@ -146,7 +207,7 @@ func (u *UI) ShowMainMenu() {
 	))
 
 	u.ui.Container.AddChild(widget.NewButton(
-		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.uiSlice, Pressed: u.uiSlice}),
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.sliceStandard, Pressed: u.sliceStandard}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
 		widget.ButtonOpts.Text("Settings", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
@@ -156,4 +217,154 @@ func (u *UI) ShowMainMenu() {
 			// singletons.GameMode = gamemode.Online
 		}),
 	))
+
+	u.ui.Container.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.sliceStandard, Pressed: u.sliceStandard}),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.Text("Login", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("login")
+			singletons.AppState.UIState = uistate.Login
+			singletons.AppState.StateChanged = true
+		}),
+	))
+}
+
+func (u *UI) ShowLogin() {
+	// u.ui.Container.RemoveChildren()
+	u.ui.Container = widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewRowLayout(
+				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+				widget.RowLayoutOpts.Padding(widget.Insets{Top: 0, Left: 100, Right: 100, Bottom: 0}),
+				widget.RowLayoutOpts.Spacing(20),
+			),
+		),
+		// widget.ContainerOpts.BackgroundImage(u.slicePaper),
+	)
+
+	u.ui.Container.AddChild(widget.NewButton(
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(54, 54),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionEnd,
+				// Stretch: true,
+			}),
+		),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("main")
+			singletons.AppState.UIState = uistate.Main
+			singletons.AppState.StateChanged = true
+		}),
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.sliceIronLight, Pressed: u.sliceIronLight}),
+		widget.ButtonOpts.Graphic(u.backButtonImage),
+	))
+	u.ui.Container.AddChild(widget.NewTextInput(
+		widget.TextInputOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(400, 10),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				// Position: widget.RowLayoutPositionCenter,
+				Stretch: true,
+			}),
+		),
+		widget.TextInputOpts.Image(&widget.TextInputImage{
+			Idle:     u.sliceStandard,
+			Disabled: u.sliceStandard,
+		}),
+		widget.TextInputOpts.Face(u.textFace),
+		widget.TextInputOpts.Padding(widget.NewInsetsSimple(20)),
+		widget.TextInputOpts.Color(&widget.TextInputColor{
+			Idle:          color.Black,
+			Disabled:      color.Black,
+			Caret:         color.Black,
+			DisabledCaret: color.Black,
+		}),
+		widget.TextInputOpts.Validation(func(newInputText string) (bool, *string) {
+			res, err := regexp.Match(`^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$`, []byte(newInputText))
+			if err != nil {
+				panic(err)
+			}
+			return res, &newInputText
+		}),
+		widget.TextInputOpts.Placeholder("Email"),
+		widget.TextInputOpts.IgnoreEmptySubmit(true),
+		widget.TextInputOpts.SubmitHandler(func(args *widget.TextInputChangedEventArgs) {
+			return
+		}),
+		widget.TextInputOpts.CaretOpts(
+			widget.CaretOpts.Size(u.textFace, 5),
+		),
+	))
+
+	u.ui.Container.AddChild(widget.NewTextInput(
+		widget.TextInputOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Stretch: true,
+			}),
+		),
+		widget.TextInputOpts.Image(&widget.TextInputImage{
+			Idle:     u.sliceStandard,
+			Disabled: u.sliceStandard,
+		}),
+		widget.TextInputOpts.Face(u.textFace),
+		widget.TextInputOpts.Padding(widget.NewInsetsSimple(20)),
+		widget.TextInputOpts.Color(&widget.TextInputColor{
+			Idle:          color.Black,
+			Disabled:      color.Black,
+			Caret:         color.Black,
+			DisabledCaret: color.Black,
+		}),
+		widget.TextInputOpts.Placeholder("Password"),
+		widget.TextInputOpts.IgnoreEmptySubmit(true),
+		widget.TextInputOpts.Secure(true),
+		widget.TextInputOpts.SubmitHandler(func(args *widget.TextInputChangedEventArgs) {
+			return
+		}),
+		widget.TextInputOpts.CaretOpts(
+			widget.CaretOpts.Size(u.textFace, 5),
+		),
+	))
+
+	innerContainer := widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewGridLayout(
+				widget.GridLayoutOpts.Columns(2),
+				widget.GridLayoutOpts.Spacing(0, 0),
+				widget.GridLayoutOpts.Stretch([]bool{true, true}, []bool{false}),
+			),
+		),
+		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{})),
+	)
+
+	innerContainer.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.sliceStandard, Pressed: u.sliceStandard}),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(180, 10)),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.Text("Login", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("login")
+			// singletons.AppState.GameMode = gamemode.Local
+			// singletons.AppState.UIState = uistate.Game
+			// singletons.AppState.StateChanged = true
+		}),
+	))
+
+	innerContainer.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: u.sliceStandard, Pressed: u.sliceStandard}),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(180, 10)),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.Text("Register", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("register")
+			// singletons.AppState.GameMode = gamemode.Local
+			// singletons.AppState.UIState = uistate.Game
+			// singletons.AppState.StateChanged = true
+		}),
+	))
+
+	u.ui.Container.AddChild(innerContainer)
+
 }

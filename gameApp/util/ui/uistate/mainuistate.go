@@ -8,4 +8,5 @@ const (
 	Statistics
 	Settings
 	Game
+	Login
 )

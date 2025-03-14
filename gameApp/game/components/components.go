@@ -54,3 +54,12 @@ type Energy struct {
 type Tween struct {
 	Animation tween.TweenAnimation
 }
+
+type MoveDireaction struct {
+	X int8
+	Y int8
+}
+
+// type StandOn struct {
+// 	Tile *ecs.Entity
+// }

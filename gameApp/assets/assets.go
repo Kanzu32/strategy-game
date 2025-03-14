@@ -26,5 +26,13 @@ var Characters = map[teams.Team]string{
 	teams.Red:  "assets/img/red.png",
 }
 
-var MainMenuBackground = "assets/ui/nine_slice/main_background.png"
-var MainUIButton = "assets/ui/nine_slice/nine_slice_ui_1.png"
+// var MainMenuBackground = "assets/ui/nine_slice/main_background.png"
+var NineSliceStandard = "assets/ui/nine_slice/nine_slice_ui_standard.png"
+var NineSliceIron = "assets/ui/nine_slice/nine_slice_ui_iron.png"
+var NineSliceIronLight = "assets/ui/nine_slice/nine_slice_ui_iron_light.png"
+var NineSliceWood = "assets/ui/nine_slice/nine_slice_ui_wood.png"
+var NineSlicePaper = "assets/ui/nine_slice/nine_slice_ui_paper.png"
+
+var BackIcon = "assets/ui/back.png"
+var MinusIcon = "assets/ui/minus.png"
+var PlusIcon = "assets/ui/plus.png"
