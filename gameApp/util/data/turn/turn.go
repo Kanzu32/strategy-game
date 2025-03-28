@@ -1,8 +1,8 @@
 package turn
 
 import (
-	"strategy-game/util/teams"
-	"strategy-game/util/turn/turnstate"
+	"strategy-game/util/data/teams"
+	"strategy-game/util/data/turn/turnstate"
 )
 
 type Turn struct {

@@ -2,7 +2,7 @@ package assets
 
 import (
 	_ "embed"
-	"strategy-game/util/teams"
+	"strategy-game/util/data/teams"
 )
 
 //go:embed ui/font/monogram-extended.ttf

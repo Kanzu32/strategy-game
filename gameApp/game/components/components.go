@@ -1,13 +1,13 @@
 package components
 
 import (
-	"strategy-game/util/classes"
+	"strategy-game/util/data/classes"
+	"strategy-game/util/data/material"
+	"strategy-game/util/data/side"
+	"strategy-game/util/data/sprite"
+	"strategy-game/util/data/teams"
+	"strategy-game/util/data/tween"
 	"strategy-game/util/ecs"
-	"strategy-game/util/material"
-	"strategy-game/util/side"
-	"strategy-game/util/sprite"
-	"strategy-game/util/teams"
-	"strategy-game/util/tween"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -55,7 +55,7 @@ type Tween struct {
 	Animation tween.TweenAnimation
 }
 
-type MoveDireaction struct {
+type MoveDirection struct {
 	X int8
 	Y int8
 }

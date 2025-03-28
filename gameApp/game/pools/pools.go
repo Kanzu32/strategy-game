@@ -15,7 +15,7 @@ var TeamPool *ecs.ComponentPool[c.Team]
 var ClassPool *ecs.ComponentPool[c.Class]
 var EnergyPool *ecs.ComponentPool[c.Energy]
 var TweenPool *ecs.ComponentPool[c.Tween]
-var MovePool *ecs.ComponentPool[c.MoveDireaction]
+var MovePool *ecs.ComponentPool[c.MoveDirection]
 
 // var StandOnPool *ecs.ComponentPool[c.StandOn]
 

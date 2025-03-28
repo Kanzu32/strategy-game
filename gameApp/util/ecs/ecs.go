@@ -147,7 +147,20 @@ func (w *World) isRegisteredEntity(entity Entity) bool {
 	return w.entities[entity.id].isRegistered()
 }
 
-func RemoveEntityFromWorld(w *World, entity Entity) {
+// func RemoveEntityFromWorld(w *World, entity Entity) {
+// 	for _, pool := range w.pools {
+// 		if pool.HasEntity(entity) {
+// 			pool.RemoveEntity(entity)
+// 		}
+// 	}
+// 	w.entities[entity.id].id = w.destroyed.id
+// 	w.entities[entity.id].state = w.destroyed.state
+// 	w.entities[entity.id].version++
+// 	w.destroyed.id = entity.id
+// 	w.destroyed.clear()
+// }
+
+func (w *World) RemoveEntityFromWorld(entity Entity) {
 	for _, pool := range w.pools {
 		if pool.HasEntity(entity) {
 			pool.RemoveEntity(entity)

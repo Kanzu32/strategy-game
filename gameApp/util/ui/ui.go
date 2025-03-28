@@ -5,8 +5,12 @@ import (
 	_ "image/png"
 	"regexp"
 	"strategy-game/assets"
+	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
-	"strategy-game/util/gamemode"
+	"strategy-game/util/data/gamemode"
+	"strategy-game/util/data/turn/turnstate"
+	"strategy-game/util/ecs"
+
 	"strategy-game/util/ui/uistate"
 
 	"github.com/ebitenui/ebitenui"
@@ -15,6 +19,7 @@ import (
 	"github.com/golang/freetype/truetype"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"golang.org/x/image/font"
 )
@@ -123,6 +128,98 @@ func (u *UI) Draw(screen *ebiten.Image) {
 
 func (u *UI) Update() {
 	u.ui.Update()
+
+	if singletons.AppState.UIState == uistate.Game {
+		handleGameInput()
+	}
+}
+
+func mousePosGameScale() (int, int) {
+	x, y := ebiten.CursorPosition()
+	return x / singletons.View.Scale, y / singletons.View.Scale
+}
+
+func handleGameInput() {
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+
+		// ENT
+
+		if singletons.Turn.State != turnstate.Input {
+			return
+		}
+
+		// клик на активный (active) либо взятый в цель (target object) объект на экране
+		activeEntities := ecs.PoolFilter([]ecs.AnyPool{pools.PositionPool, pools.SpritePool}, []ecs.AnyPool{})
+		xPosGame, yPosGame := mousePosGameScale()
+		for _, entity := range activeEntities {
+			// неактивные объекты и объекты не взятые в цель игнорируются
+			if !pools.ActiveFlag.HasEntity(entity) && !pools.TargetObjectFlag.HasEntity(entity) {
+				continue
+			}
+
+			position, err := pools.PositionPool.Component(entity)
+			if err != nil {
+				panic(err)
+			}
+
+			sprite, err := pools.SpritePool.Component(entity)
+			if err != nil {
+				panic(err)
+			}
+
+			if position.X*16 < xPosGame && xPosGame < position.X*16+sprite.Sprite.Width() &&
+				position.Y*16 < yPosGame && yPosGame < position.Y*16+sprite.Sprite.Height() {
+
+				// объект, взятый в цель, явл. тайлом (выбрать объект в цель для действия)
+				if pools.TargetObjectFlag.HasEntity(entity) && pools.TileFlag.HasEntity(entity) {
+					singletons.Turn.State = turnstate.Action
+					println("muvin")
+					return
+				}
+
+				// активный объект не являющийся юнитом (выбрать объект в цель для действия)
+				if pools.ActiveFlag.HasEntity(entity) && !pools.UnitFlag.HasEntity(entity) {
+					for _, ent := range pools.TargetObjectFlag.Entities() {
+						pools.TargetObjectFlag.RemoveEntity(ent)
+					}
+					pools.TargetObjectFlag.AddExistingEntity(entity)
+					return
+				}
+
+				// компонент team есть у всех юнитов (проверка на юнит выше)
+				team, err := pools.TeamPool.Component(entity)
+				if err != nil {
+					panic(err)
+				}
+
+				// активный юнит игрока (выбрать его для управления)
+				if pools.ActiveFlag.HasEntity(entity) && team.Team == singletons.Turn.PlayerTeam {
+					for _, ent := range pools.TargetUnitFlag.Entities() {
+						pools.TargetUnitFlag.RemoveEntity(ent)
+					}
+					for _, ent := range pools.TargetObjectFlag.Entities() {
+						pools.TargetObjectFlag.RemoveEntity(ent)
+					}
+					pools.TargetUnitFlag.AddExistingEntity(entity)
+					return
+				}
+
+				// активный юнит оппонента (выбрать юнит в цель для действия)
+				if pools.ActiveFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
+					for _, ent := range pools.TargetObjectFlag.Entities() {
+						pools.TargetObjectFlag.RemoveEntity(ent)
+					}
+					pools.TargetObjectFlag.AddExistingEntity(entity)
+					return
+				}
+
+				if pools.TargetObjectFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
+					// атака...
+					return
+				}
+			}
+		}
+	}
 }
 
 func (u *UI) ShowGameControls() {
@@ -169,9 +266,9 @@ func (u *UI) ShowGameControls() {
 
 }
 
-func (u *UI) GetFocused() widget.Focuser {
-	return u.ui.GetFocusedWidget()
-}
+// func (u *UI) GetFocused() widget.Focuser {
+// 	return u.ui.GetFocusedWidget()
+// }
 
 func (u *UI) ShowMainMenu() {
 

@@ -5,10 +5,10 @@ import (
 	"strategy-game/game/components"
 	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
+	"strategy-game/util/data/turn/turnstate"
+	"strategy-game/util/data/tween"
+	"strategy-game/util/data/tween/tweentype"
 	"strategy-game/util/ecs"
-	"strategy-game/util/turn/turnstate"
-	"strategy-game/util/tween"
-	"strategy-game/util/tween/tweentype"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -146,7 +146,7 @@ func (s *TweenMoveSystem) Run() {
 		pools.TargetObjectFlag.RemoveEntity(ent)
 	}
 
-	pools.MovePool.AddExistingEntity(unit, components.MoveDireaction{X: int8(tilePos.X - unitPos.X), Y: int8(tilePos.Y - unitPos.Y)})
+	pools.MovePool.AddExistingEntity(unit, components.MoveDirection{X: int8(tilePos.X - unitPos.X), Y: int8(tilePos.Y - unitPos.Y)})
 }
 
 type UnitMoveSystem struct{}

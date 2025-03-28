@@ -1,10 +1,10 @@
 package singletons
 
 import (
-	"strategy-game/util/classes"
-	"strategy-game/util/gamemode"
-	"strategy-game/util/stats"
-	"strategy-game/util/turn"
+	"strategy-game/util/data/classes"
+	"strategy-game/util/data/gamemode"
+	"strategy-game/util/data/stats"
+	"strategy-game/util/data/turn"
 	"strategy-game/util/ui/uistate"
 
 	"github.com/hajimehoshi/ebiten/v2"

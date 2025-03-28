@@ -1,11 +1,35 @@
 @startuml
+namespace classes {
+    class Class << (S,Aquamarine) >> {
+        + String() string
+
+    }
+    class classes.Class << (T, #FF7700) >>  {
+    }
+}
+
+
+
 namespace components {
+    class Class << (S,Aquamarine) >> {
+        + Class classes.Class
+
+    }
+    class Energy << (S,Aquamarine) >> {
+        + Energy uint8
+
+    }
     class ImageRender << (S,Aquamarine) >> {
         + Options ebiten.DrawImageOptions
 
     }
     class Material << (S,Aquamarine) >> {
         + Material material.Material
+
+    }
+    class MoveDirection << (S,Aquamarine) >> {
+        + X int8
+        + Y int8
 
     }
     class Occupied << (S,Aquamarine) >> {
@@ -27,14 +51,25 @@ namespace components {
         + Sprite sprite.Sprite
 
     }
+    class Team << (S,Aquamarine) >> {
+        + Team teams.Team
+
+    }
+    class Tween << (S,Aquamarine) >> {
+        + Animation tween.TweenAnimation
+
+    }
 }
 
 
+"components.Class" o-- "classes.Class"
 "components.ImageRender" o-- "ebiten.DrawImageOptions"
 "components.Material" o-- "material.Material"
 "components.Occupied" o-- "ecs.Entity"
 "components.Side" o-- "side.Side"
 "components.Sprite" o-- "sprite.Sprite"
+"components.Team" o-- "teams.Team"
+"components.Tween" o-- "tween.TweenAnimation"
 
 namespace ecs {
     class  << (S,Aquamarine) >> {
@@ -90,13 +125,18 @@ namespace ecs {
         + EntityCount() int
 
     }
+    interface RenderSystem  {
+        + Run(screen *ebiten.Image) 
+
+    }
     interface System  {
-        + Run(g gamedata.GameData) 
+        + Run() 
 
     }
     class World << (S,Aquamarine) >> {
         - pools []AnyPool
         - systems []System
+        - renderSystems []RenderSystem
         - next uint32
         - entities []Entity
         - destroyed Entity
@@ -104,7 +144,9 @@ namespace ecs {
         - registerNewEntity() (Entity, error)
         - isRegisteredEntity(entity Entity) bool
 
-        + Update(g gamedata.GameData) 
+        + Update() 
+        + Draw(screen *ebiten.Image) 
+        + RemoveEntityFromWorld(entity Entity) 
 
     }
     class ecs.P << (T, #FF7700) >>  {
@@ -123,56 +165,31 @@ namespace ecs {
 "ecs.FlagPool" o-- "parray.PageArray"
 "ecs.World" o-- "ecs.AnyPool"
 "ecs.World" o-- "ecs.Entity"
+"ecs.World" o-- "ecs.RenderSystem"
 "ecs.World" o-- "ecs.System"
 
 namespace game {
     class Game << (S,Aquamarine) >> {
         - world *ecs.World
-        - view *ebiten.Image
-        - viewScale int
-        - frameCount int
-        - screen screen
-        - ui *ui.GameUI
+        - ui ui.UI
 
         - handleInput() 
-        - mousePos() (int, int)
+        - mousePosGameScale() (int, int)
 
-        + FrameCount() int
-        + View() *ebiten.Image
-        + ViewScale() int
-        + ViewScaleInc() 
-        + ViewScaleDec() 
-        + RenderWidth() int
-        + RenderHeight() int
+        + StartGame() 
         + Update() error
         + Draw(screen *ebiten.Image) 
         + Layout(outsideWidth int, outsideHeight int) (int, int)
 
     }
-    class screen << (S,Aquamarine) >> {
-        - width int
-        - height int
-
-    }
 }
 
-"gamedata.GameData" <|-- "game.Game"
 
-"game.Game" o-- "ebiten.Image"
 "game.Game" o-- "ecs.World"
-"game.Game" o-- "game.screen"
-"game.Game" o-- "ui.GameUI"
+"game.Game" o-- "ui.UI"
 
-namespace gamedata {
-    interface GameData  {
-        + FrameCount() int
-        + RenderHeight() int
-        + RenderWidth() int
-        + View() *ebiten.Image
-        + ViewScale() int
-        + ViewScaleInc() 
-        + ViewScaleDec() 
-
+namespace gamemode {
+    class gamemode.GameMode << (T, #FF7700) >>  {
     }
 }
 
@@ -245,14 +262,68 @@ namespace sprite {
 "sprite.Sprite" o-- "ebiten.Image"
 "sprite.Sprite" o-- "sprite.Frame"
 
-namespace systems {
-    class TestSystem << (S,Aquamarine) >> {
-        + Run(g gamedata.GameData) 
+namespace stats {
+    class Stats << (S,Aquamarine) >> {
+        + MaxEnergy uint8
+        + EnergyPerTurn uint8
+        + MoveCost uint8
+        + AttackCost uint8
+        + ActionCost uint8
 
     }
 }
 
-"ecs.System" <|-- "systems.TestSystem"
+
+
+namespace systems {
+    class DrawGhostsSystem << (S,Aquamarine) >> {
+        + Run(screen *ebiten.Image) 
+
+    }
+    class DrawWorldSystem << (S,Aquamarine) >> {
+        + Run(screen *ebiten.Image) 
+
+    }
+    class MarkActiveTilesSystem << (S,Aquamarine) >> {
+        + Run() 
+
+    }
+    class MarkActiveUnitsSystem << (S,Aquamarine) >> {
+        + Run() 
+
+    }
+    class TurnSystem << (S,Aquamarine) >> {
+        + Run() 
+
+    }
+    class TweenMoveSystem << (S,Aquamarine) >> {
+        + Run() 
+
+    }
+    class UnitMoveSystem << (S,Aquamarine) >> {
+        + Run() 
+
+    }
+}
+
+"ecs.RenderSystem" <|-- "systems.DrawGhostsSystem"
+"ecs.RenderSystem" <|-- "systems.DrawWorldSystem"
+"ecs.System" <|-- "systems.MarkActiveTilesSystem"
+"ecs.System" <|-- "systems.MarkActiveUnitsSystem"
+"ecs.System" <|-- "systems.TurnSystem"
+"ecs.System" <|-- "systems.TweenMoveSystem"
+"ecs.System" <|-- "systems.UnitMoveSystem"
+
+
+namespace teams {
+    class Team << (S,Aquamarine) >> {
+        + String() string
+
+    }
+    class teams.Team << (T, #FF7700) >>  {
+    }
+}
+
 
 
 namespace tile {
@@ -317,57 +388,104 @@ namespace tile {
 "tile.tilesetJSON" o-- "ebiten.Image"
 "tile.tilesetJSON" o-- "tile.TileInfoJSON"
 
-namespace ui {
-    class Button << (S,Aquamarine) >> {
-        - icon icon
+namespace turn {
+    class Turn << (S,Aquamarine) >> {
+        + CurrentTurn teams.Team
+        + PlayerTeam teams.Team
+        + State turnstate.TurnState
 
-        + Active bool
-        + Handler handler
-        + UnscaledX int
-        + UnscaledY int
-
-        + Click(g gamedata.GameData) 
-        + Image() *ebiten.Image
-        + InBounds(x int, y int) bool
-
-    }
-    class GameUI << (S,Aquamarine) >> {
-        + MenuBackground *ebiten.Image
-        + WalkButton Button
-        + AttackButton Button
-        + SkillButton Button
-        + PlusButton Button
-        + MinusButton Button
-        + Portraits []*ebiten.Image
-        + Skills []*ebiten.Image
-        + CurrentScale int
-
-        + Draw(screen *ebiten.Image, g gamedata.GameData) 
-        + DrawButton(button *Button, x int, y int, scale int, screen *ebiten.Image) 
-
-    }
-    class icon << (S,Aquamarine) >> {
-        + Active *ebiten.Image
-        + Inactive *ebiten.Image
-
-    }
-    class ui.handler << (T, #FF7700) >>  {
-    }
-    class "<font color=blue>func</font>(gamedata.GameData) " as fontcolorbluefuncfontgamedataGameData {
-        'This class was created so that we can correctly have an alias pointing to this name. Since it contains dots that can break namespaces
     }
 }
 
 
-"ui.Button" o-- "ui.handler"
-"ui.Button" o-- "ui.icon"
-"ui.GameUI" o-- "ebiten.Image"
-"ui.GameUI" o-- "ui.Button"
-"ui.icon" o-- "ebiten.Image"
+"turn.Turn" o-- "teams.Team"
+"turn.Turn" o-- "turnstate.TurnState"
+
+namespace turnstate {
+    class TurnState << (S,Aquamarine) >> {
+        + String() string
+
+    }
+    class turnstate.TurnState << (T, #FF7700) >>  {
+    }
+}
+
+
+
+namespace tween {
+    class TransitionValues << (S,Aquamarine) >> {
+        + X float64
+        + Y float64
+        + Angle float64
+
+    }
+    class TweenAnimation << (S,Aquamarine) >> {
+        + Type tweentype.TweenType
+        + FrameTime float64
+        + CurrentFrameTime float64
+        + DeltaValues TransitionValues
+
+        + Animate() TransitionValues
+        + GetValue() TransitionValues
+        + IsEnded() bool
+
+    }
+}
+
+
+"tween.TweenAnimation" o-- "tween.TransitionValues"
+"tween.TweenAnimation" o-- "tweentype.TweenType"
+
+namespace tweentype {
+    class tweentype.TweenType << (T, #FF7700) >>  {
+    }
+}
+
+
+
+namespace ui {
+    class UI << (S,Aquamarine) >> {
+        - ui ebitenui.UI
+        - textFace *text.GoXFace
+        - sliceStandard *image.NineSlice
+        - sliceIron *image.NineSlice
+        - sliceWood *image.NineSlice
+        - slicePaper *image.NineSlice
+        - sliceIronLight *image.NineSlice
+        - backButtonImage *ebiten.Image
+        - plusButtonImage *ebiten.Image
+        - minusButtonImage *ebiten.Image
+
+        + Draw(screen *ebiten.Image) 
+        + Update() 
+        + ShowGameControls() 
+        + ShowMainMenu() 
+        + ShowLogin() 
+
+    }
+}
+
+
+"ui.UI" o-- "ebiten.Image"
+"ui.UI" o-- "ebitenui.UI"
+"ui.UI" o-- "image.NineSlice"
+"ui.UI" o-- "text.GoXFace"
+
+namespace uistate {
+    class uistate.UIState << (T, #FF7700) >>  {
+    }
+}
+
+
 
 "__builtin__.uint16" #.. "psize.PageSize"
+"__builtin__.uint8" #.. "classes.Class"
+"__builtin__.uint8" #.. "gamemode.GameMode"
 "__builtin__.uint8" #.. "material.Material"
 "__builtin__.uint8" #.. "side.Side"
+"__builtin__.uint8" #.. "teams.Team"
+"__builtin__.uint8" #.. "turnstate.TurnState"
+"__builtin__.uint8" #.. "tweentype.TweenType"
+"__builtin__.uint8" #.. "uistate.UIState"
 "ecs.AnyPool" #.. "ecs.P"
-"ui.fontcolorbluefuncfontgamedataGameData" #.. "ui.handler"
 @enduml

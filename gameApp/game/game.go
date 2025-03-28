@@ -9,20 +9,20 @@ import (
 	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
 	"strategy-game/game/systems"
-	"strategy-game/util/classes"
+
+	"strategy-game/util/data/classes"
+	"strategy-game/util/data/sprite"
+	"strategy-game/util/data/teams"
+	"strategy-game/util/data/turn"
+	"strategy-game/util/data/turn/turnstate"
 	"strategy-game/util/ecs"
 	"strategy-game/util/ecs/psize"
-	"strategy-game/util/sprite"
-	"strategy-game/util/teams"
 	"strategy-game/util/tile"
-	"strategy-game/util/turn"
-	"strategy-game/util/turn/turnstate"
 	"strategy-game/util/ui"
 	"strategy-game/util/ui/uistate"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 func InitPools(w *ecs.World) {
@@ -36,7 +36,7 @@ func InitPools(w *ecs.World) {
 	pools.ClassPool = ecs.CreateComponentPool[c.Class](w, psize.Page16)
 	pools.EnergyPool = ecs.CreateComponentPool[c.Energy](w, psize.Page128)
 	pools.TweenPool = ecs.CreateComponentPool[c.Tween](w, psize.Page128)
-	pools.MovePool = ecs.CreateComponentPool[c.MoveDireaction](w, psize.Page128)
+	pools.MovePool = ecs.CreateComponentPool[c.MoveDirection](w, psize.Page128)
 	// pools.StandOnPool = ecs.CreateComponentPool[c.StandOn](w, psize.Page64)
 
 	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
@@ -111,93 +111,93 @@ func (g *Game) StartGame() {
 	InitSystems(g.world)
 }
 
-func (g *Game) handleInput() {
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+// func (g *Game) handleInput() {
+// 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 
-		// ENT
+// 		// ENT
 
-		if singletons.Turn.State != turnstate.Input {
-			return
-		}
+// 		if singletons.Turn.State != turnstate.Input {
+// 			return
+// 		}
 
-		// клик на активный (active) либо взятый в цель (target object) объект на экране
-		activeEntities := ecs.PoolFilter([]ecs.AnyPool{pools.PositionPool, pools.SpritePool}, []ecs.AnyPool{})
-		xPosGame, yPosGame := g.mousePosGameScale()
-		for _, entity := range activeEntities {
-			// неактивные объекты и объекты не взятые в цель игнорируются
-			if !pools.ActiveFlag.HasEntity(entity) && !pools.TargetObjectFlag.HasEntity(entity) {
-				continue
-			}
+// 		// клик на активный (active) либо взятый в цель (target object) объект на экране
+// 		activeEntities := ecs.PoolFilter([]ecs.AnyPool{pools.PositionPool, pools.SpritePool}, []ecs.AnyPool{})
+// 		xPosGame, yPosGame := g.mousePosGameScale()
+// 		for _, entity := range activeEntities {
+// 			// неактивные объекты и объекты не взятые в цель игнорируются
+// 			if !pools.ActiveFlag.HasEntity(entity) && !pools.TargetObjectFlag.HasEntity(entity) {
+// 				continue
+// 			}
 
-			position, err := pools.PositionPool.Component(entity)
-			if err != nil {
-				panic(err)
-			}
+// 			position, err := pools.PositionPool.Component(entity)
+// 			if err != nil {
+// 				panic(err)
+// 			}
 
-			sprite, err := pools.SpritePool.Component(entity)
-			if err != nil {
-				panic(err)
-			}
+// 			sprite, err := pools.SpritePool.Component(entity)
+// 			if err != nil {
+// 				panic(err)
+// 			}
 
-			if position.X*16 < xPosGame && xPosGame < position.X*16+sprite.Sprite.Width() &&
-				position.Y*16 < yPosGame && yPosGame < position.Y*16+sprite.Sprite.Height() {
+// 			if position.X*16 < xPosGame && xPosGame < position.X*16+sprite.Sprite.Width() &&
+// 				position.Y*16 < yPosGame && yPosGame < position.Y*16+sprite.Sprite.Height() {
 
-				// объект, взятый в цель, явл. тайлом (выбрать объект в цель для действия)
-				if pools.TargetObjectFlag.HasEntity(entity) && pools.TileFlag.HasEntity(entity) {
-					singletons.Turn.State = turnstate.Action
-					println("muvin")
-					return
-				}
+// 				// объект, взятый в цель, явл. тайлом (выбрать объект в цель для действия)
+// 				if pools.TargetObjectFlag.HasEntity(entity) && pools.TileFlag.HasEntity(entity) {
+// 					singletons.Turn.State = turnstate.Action
+// 					println("muvin")
+// 					return
+// 				}
 
-				// активный объект не являющийся юнитом (выбрать объект в цель для действия)
-				if pools.ActiveFlag.HasEntity(entity) && !pools.UnitFlag.HasEntity(entity) {
-					for _, ent := range pools.TargetObjectFlag.Entities() {
-						pools.TargetObjectFlag.RemoveEntity(ent)
-					}
-					pools.TargetObjectFlag.AddExistingEntity(entity)
-					return
-				}
+// 				// активный объект не являющийся юнитом (выбрать объект в цель для действия)
+// 				if pools.ActiveFlag.HasEntity(entity) && !pools.UnitFlag.HasEntity(entity) {
+// 					for _, ent := range pools.TargetObjectFlag.Entities() {
+// 						pools.TargetObjectFlag.RemoveEntity(ent)
+// 					}
+// 					pools.TargetObjectFlag.AddExistingEntity(entity)
+// 					return
+// 				}
 
-				// компонент team есть у всех юнитов (проверка на юнит выше)
-				team, err := pools.TeamPool.Component(entity)
-				if err != nil {
-					panic(err)
-				}
+// 				// компонент team есть у всех юнитов (проверка на юнит выше)
+// 				team, err := pools.TeamPool.Component(entity)
+// 				if err != nil {
+// 					panic(err)
+// 				}
 
-				// активный юнит игрока (выбрать его для управления)
-				if pools.ActiveFlag.HasEntity(entity) && team.Team == singletons.Turn.PlayerTeam {
-					for _, ent := range pools.TargetUnitFlag.Entities() {
-						pools.TargetUnitFlag.RemoveEntity(ent)
-					}
-					for _, ent := range pools.TargetObjectFlag.Entities() {
-						pools.TargetObjectFlag.RemoveEntity(ent)
-					}
-					pools.TargetUnitFlag.AddExistingEntity(entity)
-					return
-				}
+// 				// активный юнит игрока (выбрать его для управления)
+// 				if pools.ActiveFlag.HasEntity(entity) && team.Team == singletons.Turn.PlayerTeam {
+// 					for _, ent := range pools.TargetUnitFlag.Entities() {
+// 						pools.TargetUnitFlag.RemoveEntity(ent)
+// 					}
+// 					for _, ent := range pools.TargetObjectFlag.Entities() {
+// 						pools.TargetObjectFlag.RemoveEntity(ent)
+// 					}
+// 					pools.TargetUnitFlag.AddExistingEntity(entity)
+// 					return
+// 				}
 
-				// активный юнит оппонента (выбрать юнит в цель для действия)
-				if pools.ActiveFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
-					for _, ent := range pools.TargetObjectFlag.Entities() {
-						pools.TargetObjectFlag.RemoveEntity(ent)
-					}
-					pools.TargetObjectFlag.AddExistingEntity(entity)
-					return
-				}
+// 				// активный юнит оппонента (выбрать юнит в цель для действия)
+// 				if pools.ActiveFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
+// 					for _, ent := range pools.TargetObjectFlag.Entities() {
+// 						pools.TargetObjectFlag.RemoveEntity(ent)
+// 					}
+// 					pools.TargetObjectFlag.AddExistingEntity(entity)
+// 					return
+// 				}
 
-				if pools.TargetObjectFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
-					// атака...
-					return
-				}
-			}
-		}
-	}
-}
+// 				if pools.TargetObjectFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
+// 					// атака...
+// 					return
+// 				}
+// 			}
+// 		}
+// 	}
+// }
 
-func (g *Game) mousePosGameScale() (int, int) {
-	x, y := ebiten.CursorPosition()
-	return x / singletons.View.Scale, y / singletons.View.Scale
-}
+// func (g *Game) mousePosGameScale() (int, int) {
+// 	x, y := ebiten.CursorPosition()
+// 	return x / singletons.View.Scale, y / singletons.View.Scale
+// }
 
 func (g *Game) Update() error {
 	if singletons.AppState.StateChanged {
@@ -213,13 +213,13 @@ func (g *Game) Update() error {
 		singletons.AppState.StateChanged = false
 	}
 
+	g.ui.Update()
+
 	if singletons.AppState.UIState == uistate.Game {
 		singletons.FrameCount++
-		g.handleInput()
+		// g.handleInput()
 		g.world.Update()
 	}
-
-	g.ui.Update()
 
 	return nil
 }

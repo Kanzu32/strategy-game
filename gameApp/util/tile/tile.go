@@ -6,9 +6,9 @@ import (
 	_ "image/png"
 	"log"
 	"os"
-	"strategy-game/util/material"
-	"strategy-game/util/side"
-	"strategy-game/util/sprite"
+	"strategy-game/util/data/material"
+	"strategy-game/util/data/side"
+	"strategy-game/util/data/sprite"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )

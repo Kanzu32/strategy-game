@@ -1,8 +1,6 @@
 package tween
 
-import (
-	"strategy-game/util/tween/tweentype"
-)
+import "strategy-game/util/data/tween/tweentype"
 
 type TransitionValues struct {
 	X     float64
