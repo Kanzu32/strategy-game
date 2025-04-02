@@ -26,7 +26,17 @@ type Entity struct {
 	version uint8
 }
 
+func (e *Entity) Equals(another Entity) bool {
+	if !e.isNil() && e.isRegistered() &&
+		!another.isNil() && another.isRegistered() &&
+		e.id == another.ID() && e.version == another.Version() {
+
+		return true
+	}
+	return false
+}
 func (e *Entity) ID() uint16         { return e.id }
+func (e *Entity) Version() uint8     { return e.version }
 func (e *Entity) isNil() bool        { return e.state&1 != 0 }
 func (e *Entity) isRegistered() bool { return e.state&2 != 0 }
 func (e *Entity) setNil() {

@@ -140,7 +140,7 @@ func (s *TweenMoveSystem) Run() {
 		panic(err)
 	}
 
-	pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 1000, (tilePos.X-unitPos.X)*16, (tilePos.Y-unitPos.Y)*16, 0)})
+	pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 300, (tilePos.X-unitPos.X)*16, (tilePos.Y-unitPos.Y)*16, 0)})
 
 	for _, ent := range tiles {
 		pools.TargetObjectFlag.RemoveEntity(ent)
@@ -158,7 +158,7 @@ func (s *UnitMoveSystem) Run() {
 	}
 
 	// get targeted unit
-	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{})
+	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag, pools.TweenPool, pools.MovePool}, []ecs.AnyPool{})
 	if len(units) > 1 {
 		panic("More than one targeted units")
 	} else if len(units) == 0 {
@@ -166,7 +166,7 @@ func (s *UnitMoveSystem) Run() {
 	}
 	unit := units[0]
 
-	if !pools.TweenPool.HasEntity(unit) {
+	if !pools.TweenPool.HasEntity(unit) { //useless?
 		return
 	}
 
@@ -197,11 +197,13 @@ func (s *UnitMoveSystem) Run() {
 				panic(err)
 			}
 
-			if occupied.UnitObject == &unit && pos.X == unitPos.X && pos.Y == unitPos.Y {
+			if occupied.UnitObject != nil && occupied.UnitObject.Equals(unit) && pos.X == unitPos.X && pos.Y == unitPos.Y {
+				println("remove from ", pos.X, " ", pos.Y)
 				occupied.UnitObject = nil
 			}
 
 			if occupied.UnitObject == nil && pos.X == unitPos.X+int(move.X) && pos.Y == unitPos.Y+int(move.Y) {
+				println("add to ", pos.X, " ", pos.Y)
 				occupied.UnitObject = &unit
 			}
 		}
@@ -298,9 +300,9 @@ func (s *DrawWorldSystem) Run(screen *ebiten.Image) {
 			if err != nil {
 				panic(err)
 			}
-			println("animatin")
+
 			val := tweenComp.Animation.Animate()
-			println(val.X, val.Y, val.Angle)
+
 			opt.GeoM.Translate(float64(val.X), float64(val.Y))
 			opt.GeoM.Rotate(float64(val.Angle))
 		}
