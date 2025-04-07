@@ -57,7 +57,6 @@ func (s *MarkActiveUnitsSystem) Run() { // highlight active units
 type MarkActiveTilesSystem struct{}
 
 func (s *MarkActiveTilesSystem) Run() {
-
 	if singletons.Turn.State != turnstate.Input {
 		return
 	}
@@ -147,6 +146,8 @@ func (s *TweenMoveSystem) Run() {
 	}
 
 	pools.MovePool.AddExistingEntity(unit, components.MoveDirection{X: int8(tilePos.X - unitPos.X), Y: int8(tilePos.Y - unitPos.Y)})
+
+	// network.SendGameData(network.GameData{GameID: 0, TargetedUnit: unit, TargetedObject: tile})
 }
 
 type UnitMoveSystem struct{}
@@ -162,7 +163,8 @@ func (s *UnitMoveSystem) Run() {
 	if len(units) > 1 {
 		panic("More than one targeted units")
 	} else if len(units) == 0 {
-		panic("Zero targeted units")
+		print("Zero targeted units, move skip")
+		return
 	}
 	unit := units[0]
 
