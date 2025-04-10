@@ -4,23 +4,26 @@ import (
 	"encoding/json"
 	"os"
 
+	"strategy-game/assets"
 	c "strategy-game/game/components"
 	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
 	"strategy-game/game/systems"
-	"strategy-game/util/classes"
+
+	"strategy-game/util/data/classes"
+	"strategy-game/util/data/gamemode"
+	"strategy-game/util/data/sprite"
+	"strategy-game/util/data/teams"
+	"strategy-game/util/data/turn"
+	"strategy-game/util/data/turn/turnstate"
 	"strategy-game/util/ecs"
 	"strategy-game/util/ecs/psize"
-	"strategy-game/util/sprite"
-	"strategy-game/util/teams"
 	"strategy-game/util/tile"
-	"strategy-game/util/turn"
-	"strategy-game/util/turn/turnstate"
 	"strategy-game/util/ui"
+	"strategy-game/util/ui/uistate"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 func InitPools(w *ecs.World) {
@@ -34,8 +37,9 @@ func InitPools(w *ecs.World) {
 	pools.ClassPool = ecs.CreateComponentPool[c.Class](w, psize.Page16)
 	pools.EnergyPool = ecs.CreateComponentPool[c.Energy](w, psize.Page128)
 	pools.TweenPool = ecs.CreateComponentPool[c.Tween](w, psize.Page128)
+	pools.MovePool = ecs.CreateComponentPool[c.MoveDirection](w, psize.Page128)
+	// pools.StandOnPool = ecs.CreateComponentPool[c.StandOn](w, psize.Page64)
 
-	// pools.SolidFlag = ecs.CreateFlagPool(w, psize.Page512)
 	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
 	pools.WallFlag = ecs.CreateFlagPool(w, psize.Page1024)
 	pools.SoftFlag = ecs.CreateFlagPool(w, psize.Page16)
@@ -44,8 +48,6 @@ func InitPools(w *ecs.World) {
 	pools.ActiveFlag = ecs.CreateFlagPool(w, psize.Page64)
 	pools.TargetUnitFlag = ecs.CreateFlagPool(w, psize.Page8)
 	pools.TargetObjectFlag = ecs.CreateFlagPool(w, psize.Page128)
-	// isFire := ecs.CreateFlagPool(w, psize.Page32)
-	// isIce := ecs.CreateFlagPool(w, psize.Page32)
 }
 
 // INIT SYSTEMS IN ORDER
@@ -57,232 +59,200 @@ func InitSystems(w *ecs.World) {
 	ecs.AddSystem(w, &systems.TurnSystem{})
 	ecs.AddSystem(w, &systems.MarkActiveUnitsSystem{})
 	ecs.AddSystem(w, &systems.MarkActiveTilesSystem{})
-	ecs.AddSystem(w, &systems.MoveSystem{})
+	ecs.AddSystem(w, &systems.NetworkSystem{})
+	ecs.AddSystem(w, &systems.TweenMoveSystem{})
+	ecs.AddSystem(w, &systems.UnitMoveSystem{})
 
 }
 
-func InitStartData(playerTeam teams.Team) {
-	singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: playerTeam, State: turnstate.Input}
+func InitStartData() {
+	if singletons.AppState.GameMode == gamemode.Local {
+		singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: teams.Blue, State: turnstate.Input}
+	} else {
+		team := <-singletons.Connection.TeamChan
+		if team == teams.Blue {
+			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Input}
+		} else {
+			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Wait}
+		}
 
-}
-
-func NewGame(playerTeam teams.Team) *Game {
-	g := &Game{
-		world:      ecs.CreateWorld(),
-		viewScale:  2,
-		frameCount: 0,
-		screen:     screen{width: 640, height: 480},
-		ui:         ui.CreateGameUI(),
 	}
 
+}
+
+func NewGame() *Game {
+	g := &Game{
+		world: ecs.CreateWorld(),
+		ui:    ui.CreateUI(),
+	}
+	singletons.Render.Height = 640
+	singletons.Render.Width = 480
 	// VIEW
-	g.view = ebiten.NewImage(g.screen.width, g.screen.height)
+	singletons.View.Image = ebiten.NewImage(singletons.Render.Width, singletons.Render.Height)
+	singletons.View.Scale = 2
 
-	// ECS THINGS
-	InitPools(g.world)
-
-	tilesets := tile.CreateTilesetArray([]string{
-		"assets/tiles/tilesets/1_ground-tileset.json",
-		"assets/tiles/tilesets/2_decals-tileset.json",
-		"assets/tiles/tilesets/3_active-objects-tileset.json",
-		"assets/tiles/tilesets/4_objects1-tileset.json",
-		"assets/tiles/tilesets/5_objects2-tileset.json",
-		"assets/tiles/tilesets/6_objects3-tileset.json",
-		"assets/tiles/tilesets/7_objects4-tileset.json",
-		"assets/tiles/tilesets/8_objects5-tileset.json",
-		"assets/tiles/tilesets/9_objects6-tileset.json",
-		"assets/tiles/tilesets/10_util-tileset.json",
-	})
-
-	InitTileEntities(tilesets, "assets/tiles/tilemaps/tilemap.json")
-	InitStartData(playerTeam)
-	InitSystems(g.world)
-
+	g.ui.ShowMainMenu()
+	// g.ui.ShowLogin()
 	return g
 }
 
 type Game struct {
-	world      *ecs.World
-	view       *ebiten.Image
-	viewScale  int
-	frameCount int
-	screen     screen
-	ui         *ui.GameUI
-	// renderWidth  int
-	// renderHeight int
+	world *ecs.World
+	ui    ui.UI
 }
 
-type screen struct {
-	width  int
-	height int
-}
-
-func (g *Game) FrameCount() int {
-	return g.frameCount
-}
-
-func (g *Game) View() *ebiten.Image {
-	return g.view
-}
-
-func (g *Game) ViewScale() int {
-	return g.viewScale
-}
-
-func (g *Game) ViewScaleInc() {
-	if g.viewScale != 10 {
-		g.viewScale++
-		g.ui.MinusButton.Active = true
+func (g *Game) StartGame() {
+	// ECS THINGS
+	if singletons.AppState.GameMode == gamemode.Online {
+		singletons.Connection.StartGameRequest()
 	}
-	if g.viewScale == 10 {
-		g.ui.PlusButton.Active = false
-	}
+	g.world = ecs.CreateWorld()
+	InitPools(g.world)
+
+	tilesets := tile.CreateTilesetArray([]string{
+		assets.GroundTileset,
+		assets.DecalsTileset,
+		assets.ActiveObject,
+		assets.ObjectsTileset1,
+		assets.ObjectsTileset2,
+		assets.ObjectsTileset3,
+		assets.ObjectsTileset4,
+		assets.ObjectsTileset5,
+		assets.ObjectsTileset6,
+		assets.UtilTileset,
+	})
+
+	InitTileEntities(tilesets, assets.Tilemap)
+	InitStartData()
+	InitSystems(g.world)
 }
 
-func (g *Game) ViewScaleDec() {
-	if g.viewScale != 1 {
-		g.viewScale--
-		g.ui.PlusButton.Active = true
-	}
-	if g.viewScale == 1 {
-		g.ui.MinusButton.Active = false
-	}
-}
+// func (g *Game) handleInput() {
+// 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 
-func (g *Game) RenderWidth() int {
-	return g.screen.width
-}
+// 		// ENT
 
-func (g *Game) RenderHeight() int {
-	return g.screen.height
-}
+// 		if singletons.Turn.State != turnstate.Input {
+// 			return
+// 		}
 
-func (g *Game) handleInput() {
-	// keys := []ebiten.Key{}
-	// inpututil.AppendJustPressedKeys(keys)
-	// keys[0].
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		xPosUI, yPosUI := g.mousePosUIScale()
-		// UI
-		if g.ui.PlusButton.InBounds(xPosUI, yPosUI) {
-			g.ui.PlusButton.Click(g)
-			return
-		} else if g.ui.MinusButton.InBounds(xPosUI, yPosUI) {
-			g.ui.MinusButton.Click(g)
-			return
-		}
+// 		// клик на активный (active) либо взятый в цель (target object) объект на экране
+// 		activeEntities := ecs.PoolFilter([]ecs.AnyPool{pools.PositionPool, pools.SpritePool}, []ecs.AnyPool{})
+// 		xPosGame, yPosGame := g.mousePosGameScale()
+// 		for _, entity := range activeEntities {
+// 			// неактивные объекты и объекты не взятые в цель игнорируются
+// 			if !pools.ActiveFlag.HasEntity(entity) && !pools.TargetObjectFlag.HasEntity(entity) {
+// 				continue
+// 			}
 
-		// ENT
+// 			position, err := pools.PositionPool.Component(entity)
+// 			if err != nil {
+// 				panic(err)
+// 			}
 
-		if singletons.Turn.State != turnstate.Input {
-			return
-		}
+// 			sprite, err := pools.SpritePool.Component(entity)
+// 			if err != nil {
+// 				panic(err)
+// 			}
 
-		// клик на активный (active) либо взятый в цель (target object) объект на экране
-		activeEntities := ecs.PoolFilter([]ecs.AnyPool{pools.PositionPool, pools.SpritePool}, []ecs.AnyPool{})
-		xPosGame, yPosGame := g.mousePosGameScale()
-		for _, entity := range activeEntities {
-			// неактивные объекты и объекты не взятые в цель игнорируются
-			if !pools.ActiveFlag.HasEntity(entity) && !pools.TargetObjectFlag.HasEntity(entity) {
-				continue
-			}
+// 			if position.X*16 < xPosGame && xPosGame < position.X*16+sprite.Sprite.Width() &&
+// 				position.Y*16 < yPosGame && yPosGame < position.Y*16+sprite.Sprite.Height() {
 
-			position, err := pools.PositionPool.Component(entity)
-			if err != nil {
-				panic(err)
-			}
+// 				// объект, взятый в цель, явл. тайлом (выбрать объект в цель для действия)
+// 				if pools.TargetObjectFlag.HasEntity(entity) && pools.TileFlag.HasEntity(entity) {
+// 					singletons.Turn.State = turnstate.Action
+// 					println("muvin")
+// 					return
+// 				}
 
-			sprite, err := pools.SpritePool.Component(entity)
-			if err != nil {
-				panic(err)
-			}
+// 				// активный объект не являющийся юнитом (выбрать объект в цель для действия)
+// 				if pools.ActiveFlag.HasEntity(entity) && !pools.UnitFlag.HasEntity(entity) {
+// 					for _, ent := range pools.TargetObjectFlag.Entities() {
+// 						pools.TargetObjectFlag.RemoveEntity(ent)
+// 					}
+// 					pools.TargetObjectFlag.AddExistingEntity(entity)
+// 					return
+// 				}
 
-			if position.X*16 < xPosGame && xPosGame < position.X*16+sprite.Sprite.Width() &&
-				position.Y*16 < yPosGame && yPosGame < position.Y*16+sprite.Sprite.Height() {
+// 				// компонент team есть у всех юнитов (проверка на юнит выше)
+// 				team, err := pools.TeamPool.Component(entity)
+// 				if err != nil {
+// 					panic(err)
+// 				}
 
-				// объект, взятый в цель, явл. тайлом (выбрать объект в цель для действия)
-				if pools.TargetObjectFlag.HasEntity(entity) && pools.TileFlag.HasEntity(entity) {
-					singletons.Turn.State = turnstate.Action
-					println("muvin")
-					return
-				}
+// 				// активный юнит игрока (выбрать его для управления)
+// 				if pools.ActiveFlag.HasEntity(entity) && team.Team == singletons.Turn.PlayerTeam {
+// 					for _, ent := range pools.TargetUnitFlag.Entities() {
+// 						pools.TargetUnitFlag.RemoveEntity(ent)
+// 					}
+// 					for _, ent := range pools.TargetObjectFlag.Entities() {
+// 						pools.TargetObjectFlag.RemoveEntity(ent)
+// 					}
+// 					pools.TargetUnitFlag.AddExistingEntity(entity)
+// 					return
+// 				}
 
-				// активный объект не являющийся юнитом (выбрать объект в цель для действия)
-				if pools.ActiveFlag.HasEntity(entity) && !pools.UnitFlag.HasEntity(entity) {
-					for _, ent := range pools.TargetObjectFlag.Entities() {
-						pools.TargetObjectFlag.RemoveEntity(ent)
-					}
-					pools.TargetObjectFlag.AddExistingEntity(entity)
-					return
-				}
+// 				// активный юнит оппонента (выбрать юнит в цель для действия)
+// 				if pools.ActiveFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
+// 					for _, ent := range pools.TargetObjectFlag.Entities() {
+// 						pools.TargetObjectFlag.RemoveEntity(ent)
+// 					}
+// 					pools.TargetObjectFlag.AddExistingEntity(entity)
+// 					return
+// 				}
 
-				// компонент team есть у всех юнитов (проверка на юнит выше)
-				team, err := pools.TeamPool.Component(entity)
-				if err != nil {
-					panic(err)
-				}
+// 				if pools.TargetObjectFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
+// 					// атака...
+// 					return
+// 				}
+// 			}
+// 		}
+// 	}
+// }
 
-				// активный юнит игрока (выбрать его для управления)
-				if pools.ActiveFlag.HasEntity(entity) && team.Team == singletons.Turn.PlayerTeam {
-					for _, ent := range pools.TargetUnitFlag.Entities() {
-						pools.TargetUnitFlag.RemoveEntity(ent)
-					}
-					for _, ent := range pools.TargetObjectFlag.Entities() {
-						pools.TargetObjectFlag.RemoveEntity(ent)
-					}
-					pools.TargetUnitFlag.AddExistingEntity(entity)
-					return
-				}
-
-				// активный юнит оппонента (выбрать юнит в цель для действия)
-				if pools.ActiveFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
-					for _, ent := range pools.TargetObjectFlag.Entities() {
-						pools.TargetObjectFlag.RemoveEntity(ent)
-					}
-					pools.TargetObjectFlag.AddExistingEntity(entity)
-					return
-				}
-
-				if pools.TargetObjectFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
-					// атака...
-					return
-				}
-			}
-		}
-	}
-}
-
-func (g *Game) mousePosUIScale() (int, int) {
-	x, y := ebiten.CursorPosition()
-	return x / g.ui.CurrentScale, y / g.ui.CurrentScale
-}
-
-func (g *Game) mousePosGameScale() (int, int) {
-	x, y := ebiten.CursorPosition()
-	return x / g.viewScale, y / g.viewScale
-}
+// func (g *Game) mousePosGameScale() (int, int) {
+// 	x, y := ebiten.CursorPosition()
+// 	return x / singletons.View.Scale, y / singletons.View.Scale
+// }
 
 func (g *Game) Update() error {
-	g.frameCount++
-	g.handleInput()
-	g.world.Update(g)
+	if singletons.AppState.StateChanged {
+		switch singletons.AppState.UIState {
+		case uistate.Game:
+			g.StartGame()
+			g.ui.ShowGameControls()
+		case uistate.Main:
+			g.ui.ShowMainMenu()
+		case uistate.Login:
+			g.ui.ShowLogin()
+		}
+		singletons.AppState.StateChanged = false
+	}
+
+	g.ui.Update()
+
+	if singletons.AppState.UIState == uistate.Game {
+		singletons.FrameCount++
+		// g.handleInput()
+		g.world.Update()
+	}
 
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	// DrawWorld(g, screen)
-	g.world.Draw(g, screen)
-	// print(screen.Bounds().Dx(), screen.Bounds().Dy())
-	g.ui.Draw(screen, g)
+	if singletons.AppState.UIState == uistate.Game {
+		g.world.Draw(screen)
+	}
+	g.ui.Draw(screen)
 	// msg := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
 	// ebitenutil.DebugPrint(screen, msg)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	g.screen.width = outsideWidth
-	g.screen.height = outsideHeight
-	return g.screen.width, g.screen.height
+	singletons.Render.Width = outsideWidth
+	singletons.Render.Height = outsideHeight
+	return singletons.Render.Width, singletons.Render.Height
 }
 
 func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
@@ -411,7 +381,7 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 				// print(class.String())
 
 				// TODO SKINS
-				img, _, err := ebitenutil.NewImageFromFile("assets/img/" + team.String() + ".png")
+				img, _, err := ebitenutil.NewImageFromFile(assets.Characters[team])
 				if err != nil {
 					panic(err)
 				}
@@ -497,6 +467,8 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 
 				pools.UnitFlag.AddExistingEntity(unitEntity)
 				occupiedComp.UnitObject = &unitEntity
+
+				// pools.StandOnPool.AddExistingEntity(unitEntity, c.StandOn{Tile: &tileEntity})
 			}
 		}
 		// OCCUPIED by any objects

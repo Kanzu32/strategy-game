@@ -5,11 +5,11 @@ import (
 	"strategy-game/game/components"
 	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
+	"strategy-game/util/data/gamemode"
+	"strategy-game/util/data/turn/turnstate"
+	"strategy-game/util/data/tween"
+	"strategy-game/util/data/tween/tweentype"
 	"strategy-game/util/ecs"
-	"strategy-game/util/gamedata"
-	"strategy-game/util/turn/turnstate"
-	"strategy-game/util/tween"
-	"strategy-game/util/tween/tweentype"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -20,7 +20,7 @@ import (
 
 type TurnSystem struct{}
 
-func (s *TurnSystem) Run(g gamedata.GameData) { // highlight active units
+func (s *TurnSystem) Run() { // highlight active units
 	if singletons.Turn.State == turnstate.Action {
 		for _, ent := range pools.ActiveFlag.Entities() {
 			pools.ActiveFlag.RemoveEntity(ent)
@@ -30,7 +30,7 @@ func (s *TurnSystem) Run(g gamedata.GameData) { // highlight active units
 
 type MarkActiveUnitsSystem struct{}
 
-func (s *MarkActiveUnitsSystem) Run(g gamedata.GameData) { // highlight active units
+func (s *MarkActiveUnitsSystem) Run() { // highlight active units
 	if singletons.Turn.State != turnstate.Input {
 		return
 	}
@@ -57,8 +57,7 @@ func (s *MarkActiveUnitsSystem) Run(g gamedata.GameData) { // highlight active u
 
 type MarkActiveTilesSystem struct{}
 
-func (s *MarkActiveTilesSystem) Run(g gamedata.GameData) {
-
+func (s *MarkActiveTilesSystem) Run() {
 	if singletons.Turn.State != turnstate.Input {
 		return
 	}
@@ -104,9 +103,40 @@ func (s *MarkActiveTilesSystem) Run(g gamedata.GameData) {
 	}
 }
 
-type MoveSystem struct{}
+type NetworkSystem struct{}
 
-func (s *MoveSystem) Run(g gamedata.GameData) {
+func (s *NetworkSystem) Run() {
+	if singletons.Turn.State != turnstate.Action {
+		return
+	}
+
+	if singletons.AppState.GameMode == gamemode.Online {
+		println("TRY SEND DATA")
+		units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{})
+		if len(units) > 1 {
+			panic("More than one targeted units")
+		} else if len(units) == 0 {
+			panic("Zero targeted units")
+		}
+		unit := units[0]
+
+		// get targeted object
+		tiles := ecs.PoolFilter([]ecs.AnyPool{pools.TileFlag, pools.TargetObjectFlag}, []ecs.AnyPool{})
+		if len(tiles) > 1 {
+			panic("More than one targeted objects")
+		} else if len(tiles) == 0 {
+			return
+		}
+		tile := tiles[0]
+
+		singletons.Connection.SendGameData(singletons.Turn.PlayerTeam, unit, tile)
+	}
+
+}
+
+type TweenMoveSystem struct{}
+
+func (s *TweenMoveSystem) Run() {
 
 	if singletons.Turn.State != turnstate.Action {
 		return
@@ -140,12 +170,86 @@ func (s *MoveSystem) Run(g gamedata.GameData) {
 	if err != nil {
 		panic(err)
 	}
-	pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 1000, (tilePos.X-unitPos.X)*16, (tilePos.Y-unitPos.Y)*16, 0)})
-	// TODO move unit, animate with tween
+
+	pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 300, (tilePos.X-unitPos.X)*16, (tilePos.Y-unitPos.Y)*16, 0)})
 
 	for _, ent := range tiles {
 		pools.TargetObjectFlag.RemoveEntity(ent)
 	}
+
+	pools.MovePool.AddExistingEntity(unit, components.MoveDirection{X: int8(tilePos.X - unitPos.X), Y: int8(tilePos.Y - unitPos.Y)})
+
+}
+
+type UnitMoveSystem struct{}
+
+func (s *UnitMoveSystem) Run() {
+
+	if singletons.Turn.State != turnstate.Action {
+		return
+	}
+
+	// get targeted unit
+	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag, pools.TweenPool, pools.MovePool}, []ecs.AnyPool{})
+	if len(units) > 1 {
+		panic("More than one targeted units")
+	} else if len(units) == 0 {
+		print("Zero targeted units, move skip")
+		return
+	}
+	unit := units[0]
+
+	if !pools.TweenPool.HasEntity(unit) { //useless?
+		return
+	}
+
+	t, err := pools.TweenPool.Component(unit)
+	if err != nil {
+		panic(err)
+	}
+
+	if t.Animation.IsEnded() {
+		unitPos, err := pools.PositionPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		move, err := pools.MovePool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, entity := range pools.OccupiedPool.Entities() {
+			occupied, err := pools.OccupiedPool.Component(entity)
+			if err != nil {
+				panic(err)
+			}
+
+			pos, err := pools.PositionPool.Component(entity)
+			if err != nil {
+				panic(err)
+			}
+
+			if occupied.UnitObject != nil && occupied.UnitObject.Equals(unit) && pos.X == unitPos.X && pos.Y == unitPos.Y {
+				println("remove from ", pos.X, " ", pos.Y)
+				occupied.UnitObject = nil
+			}
+
+			if occupied.UnitObject == nil && pos.X == unitPos.X+int(move.X) && pos.Y == unitPos.Y+int(move.Y) {
+				println("add to ", pos.X, " ", pos.Y)
+				occupied.UnitObject = &unit
+			}
+		}
+
+		unitPos.X += int(move.X)
+		unitPos.Y += int(move.Y)
+
+		pools.TweenPool.RemoveEntity(unit)
+		pools.MovePool.RemoveEntity(unit)
+
+		singletons.Turn.State = turnstate.Input
+	}
+
 }
 
 // ###
@@ -154,11 +258,11 @@ func (s *MoveSystem) Run(g gamedata.GameData) {
 
 type DrawWorldSystem struct{}
 
-func (s *DrawWorldSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
+func (s *DrawWorldSystem) Run(screen *ebiten.Image) {
 	unitRenderQueue := []ecs.Entity{}
 	objectRenderQueue := []ecs.Entity{}
-	frameCount := g.FrameCount()
-	view := g.View()
+	frameCount := singletons.FrameCount
+	view := singletons.View.Image
 
 	// tile render
 	for _, tileEntity := range pools.TileFlag.Entities() {
@@ -229,9 +333,9 @@ func (s *DrawWorldSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
 			if err != nil {
 				panic(err)
 			}
-			println("animatin")
+
 			val := tweenComp.Animation.Animate()
-			println(val.X, val.Y, val.Angle)
+
 			opt.GeoM.Translate(float64(val.X), float64(val.Y))
 			opt.GeoM.Rotate(float64(val.Angle))
 		}
@@ -256,15 +360,15 @@ func (s *DrawWorldSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
 	}
 
 	opt := &ebiten.DrawImageOptions{}
-	opt.GeoM.Scale(float64(g.ViewScale()), float64(g.ViewScale()))
+	opt.GeoM.Scale(float64(singletons.View.Scale), float64(singletons.View.Scale))
 	screen.DrawImage(view, opt)
 }
 
 type DrawGhostsSystem struct{}
 
-func (s *DrawGhostsSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
-	frameCount := g.FrameCount()
-	view := g.View()
+func (s *DrawGhostsSystem) Run(screen *ebiten.Image) {
+	frameCount := singletons.FrameCount
+	view := singletons.View.Image
 	for _, ghostEntity := range pools.GhostFlag.Entities() {
 		position, err := pools.PositionPool.Component(ghostEntity)
 		if err != nil {
@@ -302,7 +406,7 @@ func (s *DrawGhostsSystem) Run(g gamedata.GameData, screen *ebiten.Image) {
 	}
 
 	opt := &ebiten.DrawImageOptions{}
-	opt.GeoM.Scale(float64(g.ViewScale()), float64(g.ViewScale()))
+	opt.GeoM.Scale(float64(singletons.View.Scale), float64(singletons.View.Scale))
 	screen.DrawImage(view, opt)
 }
 
