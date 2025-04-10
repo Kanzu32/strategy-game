@@ -288,6 +288,12 @@ func (u *UI) ShowMainMenu() {
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
 		widget.ButtonOpts.Text("Play online", u.textFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("play online")
+			singletons.AppState.GameMode = gamemode.Online
+			singletons.AppState.UIState = uistate.Game
+			singletons.AppState.StateChanged = true
+		}),
 	))
 
 	u.ui.Container.AddChild(widget.NewButton(

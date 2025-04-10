@@ -5,6 +5,7 @@ import (
 	"strategy-game/game/components"
 	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
+	"strategy-game/util/data/gamemode"
 	"strategy-game/util/data/turn/turnstate"
 	"strategy-game/util/data/tween"
 	"strategy-game/util/data/tween/tweentype"
@@ -102,6 +103,37 @@ func (s *MarkActiveTilesSystem) Run() {
 	}
 }
 
+type NetworkSystem struct{}
+
+func (s *NetworkSystem) Run() {
+	if singletons.Turn.State != turnstate.Action {
+		return
+	}
+
+	if singletons.AppState.GameMode == gamemode.Online {
+		println("TRY SEND DATA")
+		units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{})
+		if len(units) > 1 {
+			panic("More than one targeted units")
+		} else if len(units) == 0 {
+			panic("Zero targeted units")
+		}
+		unit := units[0]
+
+		// get targeted object
+		tiles := ecs.PoolFilter([]ecs.AnyPool{pools.TileFlag, pools.TargetObjectFlag}, []ecs.AnyPool{})
+		if len(tiles) > 1 {
+			panic("More than one targeted objects")
+		} else if len(tiles) == 0 {
+			return
+		}
+		tile := tiles[0]
+
+		singletons.Connection.SendGameData(singletons.Turn.PlayerTeam, unit, tile)
+	}
+
+}
+
 type TweenMoveSystem struct{}
 
 func (s *TweenMoveSystem) Run() {
@@ -147,7 +179,6 @@ func (s *TweenMoveSystem) Run() {
 
 	pools.MovePool.AddExistingEntity(unit, components.MoveDirection{X: int8(tilePos.X - unitPos.X), Y: int8(tilePos.Y - unitPos.Y)})
 
-	// network.SendGameData(network.GameData{GameID: 0, TargetedUnit: unit, TargetedObject: tile})
 }
 
 type UnitMoveSystem struct{}

@@ -5,6 +5,7 @@ import (
 	"strategy-game/util/data/gamemode"
 	"strategy-game/util/data/stats"
 	"strategy-game/util/data/turn"
+	"strategy-game/util/network"
 	"strategy-game/util/ui/uistate"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -73,6 +74,8 @@ var Settings struct {
 	UIScale          int
 	Sound            int
 }
+
+var Connection network.ServerConnection
 
 // var World *ecs.World
 

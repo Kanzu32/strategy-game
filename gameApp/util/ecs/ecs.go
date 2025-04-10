@@ -21,42 +21,41 @@ type AnyPool interface {
 }
 
 type Entity struct {
-	state   uint8
-	id      uint16
-	version uint8
+	State   uint8  `json:"state"`
+	Id      uint16 `json:"id"`
+	Version uint8  `json:"version"`
 }
 
 func (e *Entity) Equals(another Entity) bool {
 	if !e.isNil() && e.isRegistered() &&
 		!another.isNil() && another.isRegistered() &&
-		e.id == another.ID() && e.version == another.Version() {
+		e.Id == another.ID() && e.Version == another.Version {
 
 		return true
 	}
 	return false
 }
-func (e *Entity) ID() uint16         { return e.id }
-func (e *Entity) Version() uint8     { return e.version }
-func (e *Entity) isNil() bool        { return e.state&1 != 0 }
-func (e *Entity) isRegistered() bool { return e.state&2 != 0 }
+func (e *Entity) ID() uint16         { return e.Id }
+func (e *Entity) isNil() bool        { return e.State&1 != 0 }
+func (e *Entity) isRegistered() bool { return e.State&2 != 0 }
 func (e *Entity) setNil() {
-	e.state = e.state | 1
-	e.state = e.state &^ 2
+	e.State = e.State | 1
+	e.State = e.State &^ 2
 }
 func (e *Entity) setRegistered() {
-	e.state = e.state | 2
-	e.state = e.state &^ 1
+	e.State = e.State | 2
+	e.State = e.State &^ 1
 }
 
-func (e *Entity) clear() { e.state = 0 }
+func (e *Entity) clear() { e.State = 0 }
 func (e Entity) String() string {
 	if e.isNil() {
-		return fmt.Sprintf("E #%d v%d NIL", e.id, e.version)
+		return fmt.Sprintf("E #%d v%d NIL", e.Id, e.Version)
 	}
 	if e.isRegistered() {
-		return fmt.Sprintf("E #%d v%d REG", e.id, e.version)
+		return fmt.Sprintf("E #%d v%d REG", e.Id, e.Version)
 	}
-	return fmt.Sprintf("Ent #%d v%d ", e.id, e.version)
+	return fmt.Sprintf("Ent #%d v%d ", e.Id, e.Version)
 }
 
 // SYSTEM
@@ -140,21 +139,21 @@ func (w *World) registerNewEntity() (Entity, error) {
 		}
 		w.entities[w.next].setRegistered()
 		e := w.entities[w.next]
-		e.id = uint16(w.next)
+		e.Id = uint16(w.next)
 		w.next += 1
 		return e, nil
 	}
 
 	ret := w.destroyed
-	w.destroyed = w.entities[ret.id]
-	w.entities[ret.id].setRegistered()
+	w.destroyed = w.entities[ret.Id]
+	w.entities[ret.Id].setRegistered()
 	ret.setRegistered()
-	ret.version = w.entities[ret.id].version
+	ret.Version = w.entities[ret.Id].Version
 	return ret, nil
 }
 
 func (w *World) isRegisteredEntity(entity Entity) bool {
-	return w.entities[entity.id].isRegistered()
+	return w.entities[entity.Id].isRegistered()
 }
 
 // func RemoveEntityFromWorld(w *World, entity Entity) {
@@ -163,10 +162,10 @@ func (w *World) isRegisteredEntity(entity Entity) bool {
 // 			pool.RemoveEntity(entity)
 // 		}
 // 	}
-// 	w.entities[entity.id].id = w.destroyed.id
-// 	w.entities[entity.id].state = w.destroyed.state
-// 	w.entities[entity.id].version++
-// 	w.destroyed.id = entity.id
+// 	w.entities[entity.Id].Id = w.destroyed.Id
+// 	w.entities[entity.Id].State = w.destroyed.State
+// 	w.entities[entity.Id].Version++
+// 	w.destroyed.Id = entity.Id
 // 	w.destroyed.clear()
 // }
 
@@ -176,10 +175,10 @@ func (w *World) RemoveEntityFromWorld(entity Entity) {
 			pool.RemoveEntity(entity)
 		}
 	}
-	w.entities[entity.id].id = w.destroyed.id
-	w.entities[entity.id].state = w.destroyed.state
-	w.entities[entity.id].version++
-	w.destroyed.id = entity.id
+	w.entities[entity.Id].Id = w.destroyed.Id
+	w.entities[entity.Id].State = w.destroyed.State
+	w.entities[entity.Id].Version++
+	w.destroyed.Id = entity.Id
 	w.destroyed.clear()
 }
 
@@ -202,7 +201,7 @@ func (pool *ComponentPool[componentType]) AddNewEntity(comp componentType) (Enti
 	}
 	pool.denseComponents = append(pool.denseComponents, comp)
 	pool.denseEntities = append(pool.denseEntities, entity)
-	pool.sparseEntities.Set(entity.id, len(pool.denseEntities)-1)
+	pool.sparseEntities.Set(entity.Id, len(pool.denseEntities)-1)
 	return entity, nil
 }
 
@@ -217,18 +216,18 @@ func (pool *ComponentPool[componentType]) AddExistingEntity(entity Entity, comp 
 	}
 	pool.denseComponents = append(pool.denseComponents, comp)
 	pool.denseEntities = append(pool.denseEntities, entity)
-	pool.sparseEntities.Set(entity.id, len(pool.denseEntities)-1)
+	pool.sparseEntities.Set(entity.Id, len(pool.denseEntities)-1)
 	return nil
 }
 
 func (pool *ComponentPool[componentType]) RemoveEntity(entity Entity) error {
-	denseRemoveIndex := pool.sparseEntities.Get(entity.id)                                     // индекс для удаления (замены) элемента в dense массивах
-	sparseLastIndex := pool.denseEntities[len(pool.denseEntities)-1].id                        // индекс элемента в sparse массиве для последнего dense элемента
+	denseRemoveIndex := pool.sparseEntities.Get(entity.Id)                                     // индекс для удаления (замены) элемента в dense массивах
+	sparseLastIndex := pool.denseEntities[len(pool.denseEntities)-1].Id                        // индекс элемента в sparse массиве для последнего dense элемента
 	pool.sparseEntities.Set(sparseLastIndex, denseRemoveIndex)                                 // установка нового указателя на dence массив sparce массиве
 	pool.denseEntities[denseRemoveIndex] = pool.denseEntities[len(pool.denseEntities)-1]       // перемещение последнего элемента dense массива
 	pool.denseComponents[denseRemoveIndex] = pool.denseComponents[len(pool.denseComponents)-1] // на позицию удаления для двух массивов
 
-	pool.sparseEntities.Set(entity.id, -1) // установка sparse эдемента для удаления в -1
+	pool.sparseEntities.Set(entity.Id, -1) // установка sparse эдемента для удаления в -1
 
 	// Уменьшение len без удаления последнего элемента.
 	// При необходимости его можно восстановить увиличив len. Append перезапишет скрытый элемент
@@ -238,7 +237,7 @@ func (pool *ComponentPool[componentType]) RemoveEntity(entity Entity) error {
 }
 
 func (pool *ComponentPool[componentType]) HasEntity(entity Entity) bool {
-	return pool.sparseEntities.Get(entity.id) != -1
+	return pool.sparseEntities.Get(entity.Id) != -1
 }
 
 func (pool *ComponentPool[componentType]) Entities() []Entity {
@@ -250,7 +249,7 @@ func (pool *ComponentPool[componentType]) Component(entity Entity) (*componentTy
 		log.Println("entity is not in the pool")
 		return nil, errors.New("entity is not in the pool")
 	}
-	return &pool.denseComponents[pool.sparseEntities.Get(entity.id)], nil
+	return &pool.denseComponents[pool.sparseEntities.Get(entity.Id)], nil
 }
 
 func (pool *ComponentPool[poolType]) EntityCount() int {
@@ -311,7 +310,7 @@ func (pool *FlagPool) AddNewEntity() (Entity, error) {
 		return entity, err
 	}
 	pool.denseEntities = append(pool.denseEntities, entity)
-	pool.sparseEntities.Set(entity.id, len(pool.denseEntities)-1)
+	pool.sparseEntities.Set(entity.Id, len(pool.denseEntities)-1)
 	return entity, nil
 }
 
@@ -325,24 +324,24 @@ func (pool *FlagPool) AddExistingEntity(entity Entity) (Entity, error) {
 		return entity, errors.New("entityID is not registered")
 	}
 	pool.denseEntities = append(pool.denseEntities, entity)
-	pool.sparseEntities.Set(entity.id, len(pool.denseEntities)-1)
+	pool.sparseEntities.Set(entity.Id, len(pool.denseEntities)-1)
 	return entity, nil
 }
 
 func (pool *FlagPool) RemoveEntity(entity Entity) error {
-	denseRemoveIndex := pool.sparseEntities.Get(entity.id)
-	sparseLastIndex := pool.denseEntities[len(pool.denseEntities)-1].id
+	denseRemoveIndex := pool.sparseEntities.Get(entity.Id)
+	sparseLastIndex := pool.denseEntities[len(pool.denseEntities)-1].Id
 	pool.sparseEntities.Set(sparseLastIndex, denseRemoveIndex)
 	pool.denseEntities[denseRemoveIndex] = pool.denseEntities[len(pool.denseEntities)-1]
 
-	pool.sparseEntities.Set(entity.id, -1)
+	pool.sparseEntities.Set(entity.Id, -1)
 
 	pool.denseEntities = pool.denseEntities[:len(pool.denseEntities)-1]
 	return nil
 }
 
 func (pool *FlagPool) HasEntity(entity Entity) bool {
-	return pool.sparseEntities.Get(entity.id) != -1
+	return pool.sparseEntities.Get(entity.Id) != -1
 }
 
 func (pool *FlagPool) Entities() []Entity {

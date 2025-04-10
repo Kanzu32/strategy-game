@@ -11,6 +11,7 @@ import (
 	"strategy-game/game/systems"
 
 	"strategy-game/util/data/classes"
+	"strategy-game/util/data/gamemode"
 	"strategy-game/util/data/sprite"
 	"strategy-game/util/data/teams"
 	"strategy-game/util/data/turn"
@@ -58,13 +59,25 @@ func InitSystems(w *ecs.World) {
 	ecs.AddSystem(w, &systems.TurnSystem{})
 	ecs.AddSystem(w, &systems.MarkActiveUnitsSystem{})
 	ecs.AddSystem(w, &systems.MarkActiveTilesSystem{})
+	ecs.AddSystem(w, &systems.NetworkSystem{})
 	ecs.AddSystem(w, &systems.TweenMoveSystem{})
 	ecs.AddSystem(w, &systems.UnitMoveSystem{})
 
 }
 
-func InitStartData(playerTeam teams.Team) {
-	singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: playerTeam, State: turnstate.Input}
+func InitStartData() {
+	if singletons.AppState.GameMode == gamemode.Local {
+		singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: teams.Blue, State: turnstate.Input}
+	} else {
+		team := <-singletons.Connection.TeamChan
+		if team == teams.Blue {
+			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Input}
+		} else {
+			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Wait}
+		}
+
+	}
+
 }
 
 func NewGame() *Game {
@@ -90,6 +103,9 @@ type Game struct {
 
 func (g *Game) StartGame() {
 	// ECS THINGS
+	if singletons.AppState.GameMode == gamemode.Online {
+		singletons.Connection.StartGameRequest()
+	}
 	g.world = ecs.CreateWorld()
 	InitPools(g.world)
 
@@ -107,7 +123,7 @@ func (g *Game) StartGame() {
 	})
 
 	InitTileEntities(tilesets, assets.Tilemap)
-	InitStartData(teams.Blue)
+	InitStartData()
 	InitSystems(g.world)
 }
 
