@@ -10,6 +10,8 @@ import (
 // TODO WALK
 // TODO GAME UI
 // TODO ATTACK SYSTEM
+// TODO упакоука
+//
 // TODO ...
 
 func main() {
