@@ -138,7 +138,7 @@ type TweenMoveSystem struct{}
 
 func (s *TweenMoveSystem) Run() {
 
-	if singletons.Turn.State != turnstate.Action {
+	if singletons.Turn.State == turnstate.Input {
 		return
 	}
 
@@ -147,7 +147,7 @@ func (s *TweenMoveSystem) Run() {
 	if len(units) > 1 {
 		panic("More than one targeted units")
 	} else if len(units) == 0 {
-		panic("Zero targeted units")
+		return
 	}
 	unit := units[0]
 
@@ -160,7 +160,16 @@ func (s *TweenMoveSystem) Run() {
 	}
 	tile := tiles[0]
 
-	println("addin")
+	occupied, err := pools.OccupiedPool.Component(tile)
+	if err != nil {
+		panic(err)
+	}
+
+	// skip if it is not move, but iteraction
+	if occupied.UnitObject != nil || occupied.StaticObject != nil || occupied.ActiveObject != nil {
+		return
+	}
+
 	unitPos, err := pools.PositionPool.Component(unit)
 	if err != nil {
 		panic(err)
@@ -185,16 +194,15 @@ type UnitMoveSystem struct{}
 
 func (s *UnitMoveSystem) Run() {
 
-	if singletons.Turn.State != turnstate.Action {
+	if singletons.Turn.State == turnstate.Input {
 		return
 	}
 
-	// get targeted unit
+	// get targeted moving unit
 	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag, pools.TweenPool, pools.MovePool}, []ecs.AnyPool{})
 	if len(units) > 1 {
 		panic("More than one targeted units")
 	} else if len(units) == 0 {
-		print("Zero targeted units, move skip")
 		return
 	}
 	unit := units[0]
@@ -247,9 +255,10 @@ func (s *UnitMoveSystem) Run() {
 		pools.TweenPool.RemoveEntity(unit)
 		pools.MovePool.RemoveEntity(unit)
 
-		singletons.Turn.State = turnstate.Input
+		if singletons.Turn.State == turnstate.Action {
+			singletons.Turn.State = turnstate.Input
+		}
 	}
-
 }
 
 // ###
