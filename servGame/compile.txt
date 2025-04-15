@@ -1,0 +1,1 @@
+go build clientcon.go database.go gemeemu.go main.go server.go terminal.go
