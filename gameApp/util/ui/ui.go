@@ -280,7 +280,7 @@ func (u *UI) ShowMainMenu() {
 				widget.RowLayoutOpts.Spacing(20),
 			),
 		),
-		// widget.ContainerOpts.BackgroundImage(u.slicePaper),
+		widget.ContainerOpts.BackgroundImage(u.sliceIron),
 	)
 
 	u.ui.Container.AddChild(widget.NewButton(
@@ -340,11 +340,11 @@ func (u *UI) ShowLogin() {
 		widget.ContainerOpts.Layout(
 			widget.NewRowLayout(
 				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-				widget.RowLayoutOpts.Padding(widget.Insets{Top: 0, Left: 100, Right: 100, Bottom: 0}),
+				widget.RowLayoutOpts.Padding(widget.Insets{Top: 20, Left: 100, Right: 100, Bottom: 0}),
 				widget.RowLayoutOpts.Spacing(20),
 			),
 		),
-		// widget.ContainerOpts.BackgroundImage(u.slicePaper),
+		widget.ContainerOpts.BackgroundImage(u.sliceIron),
 	)
 
 	u.ui.Container.AddChild(widget.NewButton(
@@ -470,4 +470,7 @@ func (u *UI) ShowLogin() {
 
 	u.ui.Container.AddChild(innerContainer)
 
+	// u.ui.Container.AddChild(widget.NewLabel(widget.LabelOpts.Text("Успешный вход", u.textFace, &widget.LabelColor{Idle: color.RGBA{0, 255, 0, 0}})))
+	// u.ui.Container.AddChild(widget.NewLabel(widget.LabelOpts.Text("Неверная почта или пароль", u.textFace, &widget.LabelColor{Idle: color.RGBA{255, 0, 0, 0}})))
+	u.ui.Container.AddChild(widget.NewLabel(widget.LabelOpts.Text("Ошибка при регистрации", u.textFace, &widget.LabelColor{Idle: color.RGBA{255, 0, 0, 0}})))
 }
