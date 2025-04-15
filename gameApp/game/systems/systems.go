@@ -166,7 +166,7 @@ func (s *TweenMoveSystem) Run() {
 	}
 
 	// skip if it is not move, but iteraction
-	if occupied.UnitObject != nil || occupied.StaticObject != nil || occupied.ActiveObject != nil {
+	if occupied.UnitObject != nil || occupied.StaticObject != nil || (occupied.ActiveObject != nil && !pools.SoftFlag.HasEntity(*occupied.ActiveObject)) {
 		return
 	}
 
@@ -257,6 +257,16 @@ func (s *UnitMoveSystem) Run() {
 
 		if singletons.Turn.State == turnstate.Action {
 			singletons.Turn.State = turnstate.Input
+		}
+
+		if singletons.Turn.State == turnstate.Wait {
+			for _, ent := range pools.TargetUnitFlag.Entities() {
+				pools.TargetUnitFlag.RemoveEntity(ent)
+			}
+
+			for _, ent := range pools.TargetObjectFlag.Entities() {
+				pools.TargetObjectFlag.RemoveEntity(ent)
+			}
 		}
 	}
 }
