@@ -129,7 +129,7 @@ func (s *NetworkSystem) Run() {
 		}
 		tile := tiles[0]
 
-		singletons.Connection.SendGameData(singletons.Turn.PlayerTeam, unit, tile)
+		singletons.Connection.SendGameData(unit, tile)
 	}
 
 }
