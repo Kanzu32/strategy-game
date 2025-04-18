@@ -5,6 +5,7 @@ import (
 	"strategy-game/util/data/gamemode"
 	"strategy-game/util/data/stats"
 	"strategy-game/util/data/turn"
+	"strategy-game/util/data/userstatus"
 	"strategy-game/util/network"
 	"strategy-game/util/ui/uistate"
 
@@ -73,6 +74,12 @@ var Settings struct {
 	DefaultGameScale int
 	UIScale          int
 	Sound            int
+}
+
+var UserLogin struct {
+	Email    string
+	Password string
+	Status   userstatus.UserStatus
 }
 
 var Connection network.ServerConnection

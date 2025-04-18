@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net"
+	"net/http"
 	"strategy-game/game/pools"
 	"strategy-game/util/data/teams"
 	"strategy-game/util/ecs"
@@ -16,9 +17,8 @@ type Packet struct {
 }
 
 type GameData struct {
-	UserTeam string     `json:"userteam"`
-	UnitID   ecs.Entity `json:"unitid"`
-	TileID   ecs.Entity `json:"tileid"`
+	UnitID ecs.Entity `json:"unitid"`
+	TileID ecs.Entity `json:"tileid"`
 }
 
 type UserData struct {
@@ -104,18 +104,12 @@ func (s *ServerConnection) gameResponse() {
 
 }
 
-func (s *ServerConnection) SendGameData(userTeam teams.Team, unitID ecs.Entity, tileID ecs.Entity) {
+func (s *ServerConnection) SendGameData(unitID ecs.Entity, tileID ecs.Entity) {
 	s.m.Lock()
 	defer s.m.Unlock()
 	println("start send data")
-	teamString := ""
-	if userTeam == teams.Blue {
-		teamString = "BLUE"
-	} else {
-		teamString = "RED"
-	}
 
-	b, err := json.Marshal(GameData{UserTeam: teamString, UnitID: unitID, TileID: tileID})
+	b, err := json.Marshal(GameData{UnitID: unitID, TileID: tileID})
 	if err != nil {
 		panic(err)
 	}
@@ -132,32 +126,61 @@ func (s *ServerConnection) SendGameData(userTeam teams.Team, unitID ecs.Entity, 
 	// s.conn.Read(b) // response
 }
 
-func (s *ServerConnection) LoginRequest() {
-	conn, err := net.Dial("tcp", "127.0.0.1:4545")
+func LoginRequest(email string, password string) int {
+
+	var buf bytes.Buffer
+	json.NewEncoder(&buf).Encode(UserData{email, password})
+	resp, err := http.Post("http://127.0.0.1:8080/api/login", "application/json", &buf)
 	if err != nil {
-		panic(err)
+		println("ошибка при входе")
+		return http.StatusBadRequest
 	}
-	defer conn.Close()
+
+	println(resp.Status)
+	if resp.StatusCode == http.StatusUnauthorized {
+		println("неверное имя пользователя или пароль")
+	} else if resp.StatusCode == http.StatusOK {
+		println("good log")
+	} else {
+		println("ошибка при входе")
+	}
+
+	return resp.StatusCode
+	// do stuff
+}
+
+func RegisterRequest(email string, password string) int {
+	var buf bytes.Buffer
+	json.NewEncoder(&buf).Encode(UserData{email, password})
+	resp, err := http.Post("http://127.0.0.1:8080/api/register", "application/json", &buf)
+	if err != nil {
+		println("ошибка при регистрации")
+		return http.StatusBadRequest
+	}
+
+	println(resp.Status)
+	if resp.StatusCode == http.StatusConflict {
+		println("пользователь уже зарегистрирован")
+	} else if resp.StatusCode == http.StatusOK {
+		println("good reg")
+	} else {
+		println("ошибка при регистрации")
+	}
+
+	return resp.StatusCode
 
 	// do stuff
 }
 
-func (s *ServerConnection) RegisterRequest() {
-	conn, err := net.Dial("tcp", "127.0.0.1:4545")
+func StatisticsRequest(email string, password string) {
+	var buf bytes.Buffer
+	json.NewEncoder(&buf).Encode(UserData{email, password})
+	resp, err := http.Post("http://127.0.0.1:8080/api/register", "application/json", &buf)
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close()
 
-	// do stuff
-}
-
-func (s *ServerConnection) StatisticsRequest() {
-	conn, err := net.Dial("tcp", "127.0.0.1:4545")
-	if err != nil {
-		panic(err)
-	}
-	defer conn.Close()
+	println(resp)
 
 	// do stuff
 }

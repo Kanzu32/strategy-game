@@ -10,6 +10,7 @@ import (
 	"strategy-game/util/data/gamemode"
 	"strategy-game/util/data/turn/turnstate"
 	"strategy-game/util/ecs"
+	"strategy-game/util/network"
 
 	"strategy-game/util/ui/uistate"
 
@@ -448,6 +449,24 @@ func (u *UI) ShowLogin() {
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("login")
+
+			emailInput := u.ui.Container.Children()[1].(*widget.TextInput)
+			passwordInput := u.ui.Container.Children()[2].(*widget.TextInput)
+
+			status := network.LoginRequest(emailInput.GetText(), passwordInput.GetText())
+			statusText := u.ui.Container.Children()[len(u.ui.Container.Children())-1].(*widget.Text)
+
+			switch status {
+			case 200:
+				statusText.Color = color.RGBA{0, 255, 0, 0}
+				statusText.Label = "Успешный вход"
+			case 401:
+				statusText.Color = color.RGBA{255, 0, 0, 0}
+				statusText.Label = "Неверное имя пользователя или пароль"
+			default:
+				statusText.Color = color.RGBA{255, 0, 0, 0}
+				statusText.Label = "Ошибка при входе"
+			}
 			// singletons.AppState.GameMode = gamemode.Local
 			// singletons.AppState.UIState = uistate.Game
 			// singletons.AppState.StateChanged = true
@@ -462,6 +481,23 @@ func (u *UI) ShowLogin() {
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("register")
+			emailInput := u.ui.Container.Children()[1].(*widget.TextInput)
+			passwordInput := u.ui.Container.Children()[2].(*widget.TextInput)
+
+			status := network.RegisterRequest(emailInput.GetText(), passwordInput.GetText())
+			statusText := u.ui.Container.Children()[len(u.ui.Container.Children())-1].(*widget.Text)
+
+			switch status {
+			case 200:
+				statusText.Color = color.RGBA{0, 255, 0, 0}
+				statusText.Label = "Успешный вход"
+			case 409:
+				statusText.Color = color.RGBA{255, 0, 0, 0}
+				statusText.Label = "Пользователь уже зарегистрирован"
+			default:
+				statusText.Color = color.RGBA{255, 0, 0, 0}
+				statusText.Label = "Ошибка при регистрации"
+			}
 			// singletons.AppState.GameMode = gamemode.Local
 			// singletons.AppState.UIState = uistate.Game
 			// singletons.AppState.StateChanged = true
@@ -470,7 +506,9 @@ func (u *UI) ShowLogin() {
 
 	u.ui.Container.AddChild(innerContainer)
 
-	// u.ui.Container.AddChild(widget.NewLabel(widget.LabelOpts.Text("Успешный вход", u.textFace, &widget.LabelColor{Idle: color.RGBA{0, 255, 0, 0}})))
+	// u.ui.Container.AddChild(widget.NewLabel(widget.LabelOpts.Text("", u.textFace, &widget.LabelColor{Idle: color.RGBA{0, 255, 0, 0}})))
+	u.ui.Container.AddChild(widget.NewText(widget.TextOpts.Text("", u.textFace, color.Black)))
+
 	// u.ui.Container.AddChild(widget.NewLabel(widget.LabelOpts.Text("Неверная почта или пароль", u.textFace, &widget.LabelColor{Idle: color.RGBA{255, 0, 0, 0}})))
-	u.ui.Container.AddChild(widget.NewLabel(widget.LabelOpts.Text("Ошибка при регистрации", u.textFace, &widget.LabelColor{Idle: color.RGBA{255, 0, 0, 0}})))
+	// u.ui.Container.AddChild(widget.NewLabel(widget.LabelOpts.Text("Ошибка при регистрации", u.textFace, &widget.LabelColor{Idle: color.RGBA{255, 0, 0, 0}})))
 }

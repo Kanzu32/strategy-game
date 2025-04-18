@@ -1,6 +1,8 @@
 package main
 
 import (
+	"SERV/database"
+	"SERV/server"
 	"bufio"
 	"log"
 	"os"
@@ -57,9 +59,9 @@ func main() {
 	}
 
 	log.Println("Connecting to database...")
-	database := NewDatabase(config.MongoURI, config.DbName, config.CollName)
+	database := database.NewDatabase(config.MongoURI, config.DbName, config.CollName)
 
 	log.Println("Starting server...")
-	server := NewServer(database)
+	server := server.NewServer(database)
 	server.Start(config.Port)
 }
