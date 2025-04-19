@@ -490,7 +490,7 @@ func (u *UI) ShowLogin() {
 			switch status {
 			case 200:
 				statusText.Color = color.RGBA{0, 255, 0, 0}
-				statusText.Label = "Успешный вход"
+				statusText.Label = "Успешная регистрация и вход"
 			case 409:
 				statusText.Color = color.RGBA{255, 0, 0, 0}
 				statusText.Label = "Пользователь уже зарегистрирован"
