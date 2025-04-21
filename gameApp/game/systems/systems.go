@@ -334,6 +334,8 @@ func (s *AttackSystem) Run() {
 		panic("More than one targeted objects")
 	} else if len(units) == 1 && len(tiles) == 1 {
 
+		println("u can win dis figt")
+
 		unit := units[0]
 		tile := tiles[0]
 
@@ -347,7 +349,7 @@ func (s *AttackSystem) Run() {
 			return
 		}
 
-		print("now we figtin")
+		println("now we figtin")
 
 		health, err := pools.HealthPool.Component(*occupied.UnitObject)
 		if err != nil {
@@ -560,6 +562,7 @@ func (s *DrawWorldSystem) Run(screen *ebiten.Image) {
 
 	opt := &ebiten.DrawImageOptions{}
 	opt.GeoM.Scale(float64(singletons.View.Scale), float64(singletons.View.Scale))
+	opt.GeoM.Translate(float64(singletons.View.ShiftX), float64(singletons.View.ShiftY))
 	screen.DrawImage(view, opt)
 }
 
@@ -606,6 +609,7 @@ func (s *DrawGhostsSystem) Run(screen *ebiten.Image) {
 
 	opt := &ebiten.DrawImageOptions{}
 	opt.GeoM.Scale(float64(singletons.View.Scale), float64(singletons.View.Scale))
+	opt.GeoM.Translate(float64(singletons.View.ShiftX), float64(singletons.View.ShiftY))
 	screen.DrawImage(view, opt)
 }
 
@@ -613,6 +617,7 @@ func (s *DrawGhostsSystem) Run(screen *ebiten.Image) {
 type DrawStatsSystem struct{}
 
 func (s *DrawStatsSystem) Run(screen *ebiten.Image) {
+	view := singletons.View.Image
 	for _, unitEntity := range pools.UnitFlag.Entities() {
 		position, err := pools.PositionPool.Component(unitEntity)
 		if err != nil {
@@ -635,9 +640,9 @@ func (s *DrawStatsSystem) Run(screen *ebiten.Image) {
 		op.ColorScale.SetB(0)
 		op.ColorScale.SetA(255)
 
-		op.GeoM.Scale(float64(singletons.View.Scale)*0.25, float64(singletons.View.Scale)*0.25)
-		op.GeoM.Translate(float64((position.X*16+8)*singletons.View.Scale), float64((position.Y*16-4)*singletons.View.Scale))
-		text.Draw(screen, strconv.FormatUint(uint64(energy.Energy), 10), ui.TextFace, op)
+		op.GeoM.Scale(0.25, 0.25)
+		op.GeoM.Translate(float64((position.X*16 + 8)), float64((position.Y*16 - 4)))
+		text.Draw(view, strconv.FormatUint(uint64(energy.Energy), 10), ui.TextFace, op)
 
 		op = &text.DrawOptions{}
 		// op.ColorScale.ScaleWithColor(color.RGBA{255, 255, 0, 0})
@@ -646,10 +651,15 @@ func (s *DrawStatsSystem) Run(screen *ebiten.Image) {
 		op.ColorScale.SetB(0)
 		op.ColorScale.SetA(255)
 
-		op.GeoM.Scale(float64(singletons.View.Scale)*0.25, float64(singletons.View.Scale)*0.25)
-		op.GeoM.Translate(float64((position.X*16)*singletons.View.Scale), float64((position.Y*16-4)*singletons.View.Scale))
+		op.GeoM.Scale(0.25, 0.25)
+		op.GeoM.Translate(float64((position.X * 16)), float64((position.Y*16 - 4)))
 
-		text.Draw(screen, strconv.FormatUint(uint64(health.Health), 10), ui.TextFace, op)
+		text.Draw(view, strconv.FormatUint(uint64(health.Health), 10), ui.TextFace, op)
+
+		opt := &ebiten.DrawImageOptions{}
+		opt.GeoM.Scale(float64(singletons.View.Scale), float64(singletons.View.Scale))
+		opt.GeoM.Translate(float64(singletons.View.ShiftX), float64(singletons.View.ShiftY))
+		screen.DrawImage(view, opt)
 	}
 }
 

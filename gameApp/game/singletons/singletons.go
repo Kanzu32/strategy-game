@@ -81,8 +81,10 @@ var Render struct {
 }
 
 var View struct {
-	Image *ebiten.Image
-	Scale int
+	Image  *ebiten.Image
+	Scale  int
+	ShiftX int
+	ShiftY int
 }
 
 var Settings struct {

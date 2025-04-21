@@ -157,11 +157,31 @@ func (u *UI) Update() {
 
 func mousePosGameScale() (int, int) {
 	x, y := ebiten.CursorPosition()
-	return x / singletons.View.Scale, y / singletons.View.Scale
+	return (x - singletons.View.ShiftX) / singletons.View.Scale, (y - singletons.View.ShiftY) / singletons.View.Scale
 }
 
+var isDragging bool = false
+var lastPositionX int = 0
+var lastPositionY int = 0
+
 func handleGameInput() {
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
+		isDragging = true
+		lastPositionX, lastPositionY = ebiten.CursorPosition()
+	} else if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonRight) {
+		isDragging = false
+	}
+
+	if isDragging {
+		x, y := ebiten.CursorPosition()
+		singletons.View.ShiftX -= lastPositionX - x
+		singletons.View.ShiftY -= lastPositionY - y
+		lastPositionX = x
+		lastPositionY = y
+		println(singletons.View.ShiftX, singletons.View.ShiftY)
+	}
+
+	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) && !isDragging {
 
 		// ENT
 
