@@ -1,17 +1,23 @@
 package systems
 
 import (
+	"log"
 	"math"
 	"strategy-game/game/components"
 	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
 	"strategy-game/util/data/gamemode"
+	"strategy-game/util/data/teams"
 	"strategy-game/util/data/turn/turnstate"
 	"strategy-game/util/data/tween"
 	"strategy-game/util/data/tween/tweentype"
 	"strategy-game/util/ecs"
+	"strategy-game/util/network"
+	"strategy-game/util/ui"
+	"strconv"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 )
 
 // ###
@@ -31,7 +37,7 @@ func (s *TurnSystem) Run() { // highlight active units
 type MarkActiveUnitsSystem struct{}
 
 func (s *MarkActiveUnitsSystem) Run() { // highlight active units
-	if singletons.Turn.State != turnstate.Input {
+	if singletons.Turn.State != turnstate.Input || pools.TargetUnitFlag.EntityCount() > 0 { // если игрок уже походил юнитом, то другого выбирать не надо
 		return
 	}
 
@@ -49,6 +55,7 @@ func (s *MarkActiveUnitsSystem) Run() { // highlight active units
 			}
 
 			if energyComp.Energy > 0 && teamComp.Team == singletons.Turn.PlayerTeam {
+				println("active unit")
 				pools.ActiveFlag.AddExistingEntity(entity) // highlight units
 			}
 		}
@@ -62,18 +69,28 @@ func (s *MarkActiveTilesSystem) Run() {
 		return
 	}
 
-	// get targeted unit
+	// Смотрим какой юнит взят в таргет
 	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag, pools.EnergyPool, pools.ClassPool, pools.PositionPool}, []ecs.AnyPool{})
 	if len(units) > 1 {
 		panic("More than one targeted units")
 	}
 
-	// all tiles
+	// Ищим тайлы доступлые для клика
 	tiles := ecs.PoolFilter([]ecs.AnyPool{pools.TileFlag, pools.PositionPool, pools.OccupiedPool}, []ecs.AnyPool{})
 
 	for _, unit := range units {
 
 		unitPosition, err := pools.PositionPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		unitEnergy, err := pools.EnergyPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		class, err := pools.ClassPool.Component(unit)
 		if err != nil {
 			panic(err)
 		}
@@ -89,16 +106,35 @@ func (s *MarkActiveTilesSystem) Run() {
 				panic(err)
 			}
 
-			if positionsDistance(unitPosition, tilePostion) == 1 &&
+			distance := positionsDistance(unitPosition, tilePostion)
+
+			if distance == 1 && // Проверка на передвижение
 				!pools.ActiveFlag.HasEntity(tile) &&
 				!pools.WallFlag.HasEntity(tile) &&
 				occupied.UnitObject == nil &&
-				(occupied.ActiveObject == nil || pools.SoftFlag.HasEntity(*occupied.ActiveObject)) {
+				(occupied.ActiveObject == nil || pools.SoftFlag.HasEntity(*occupied.ActiveObject)) &&
+				unitEnergy.Energy >= singletons.ClassStats[class.Class].MoveCost {
 
 				pools.ActiveFlag.AddExistingEntity(tile)
-			} else if positionsDistance(unitPosition, tilePostion) != 1 && pools.ActiveFlag.HasEntity(tile) {
+			} else if distance >= singletons.ClassStats[class.Class].AttackDistanceStart && // проверка на атаку TODO было бы неплохо проверить в какую команду бьём
+				distance <= singletons.ClassStats[class.Class].AttackDistanceEnd &&
+				!pools.ActiveFlag.HasEntity(tile) &&
+				!pools.WallFlag.HasEntity(tile) &&
+				occupied.UnitObject != nil &&
+				(occupied.ActiveObject == nil || pools.SoftFlag.HasEntity(*occupied.ActiveObject)) &&
+				unitEnergy.Energy >= singletons.ClassStats[class.Class].AttackCost {
+
+				print("YOU CAN FIGHT")
+				pools.ActiveFlag.AddExistingEntity(tile)
+			} else if (distance != 1 &&
+				(distance < singletons.ClassStats[class.Class].AttackDistanceStart || distance > singletons.ClassStats[class.Class].AttackDistanceEnd)) &&
+				pools.ActiveFlag.HasEntity(tile) {
+
 				pools.ActiveFlag.RemoveEntity(tile)
 			}
+			// else if positionsDistance(unitPosition, tilePostion) != 1 && pools.ActiveFlag.HasEntity(tile) {
+			// 	pools.ActiveFlag.RemoveEntity(tile)
+			// }
 		}
 	}
 }
@@ -111,7 +147,6 @@ func (s *NetworkSystem) Run() {
 	}
 
 	if singletons.AppState.GameMode == gamemode.Online {
-		println("TRY SEND DATA")
 		units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{})
 		if len(units) > 1 {
 			panic("More than one targeted units")
@@ -129,145 +164,290 @@ func (s *NetworkSystem) Run() {
 		}
 		tile := tiles[0]
 
-		singletons.Connection.SendGameData(unit, tile)
+		network.SendGameData(unit, tile)
 	}
 
 }
 
-type TweenMoveSystem struct{}
+type MoveSystem struct{}
 
-func (s *TweenMoveSystem) Run() {
-
+func (s *MoveSystem) Run() {
+	// Если пользователь не смотрит анимацию (не Action или Wait)
 	if singletons.Turn.State == turnstate.Input {
 		return
 	}
 
-	// get targeted unit
-	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{})
-	if len(units) > 1 {
-		panic("More than one targeted units")
-	} else if len(units) == 0 {
-		return
-	}
-	unit := units[0]
+	// #1# Проверка на необходимость начать новую анимацию передвижения
 
-	// get targeted object
+	// если есть юнит взятый в цель, который не двигается...
+	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{pools.MovePool, pools.TweenPool})
+
+	// ... и тайл взятый в цель
 	tiles := ecs.PoolFilter([]ecs.AnyPool{pools.TileFlag, pools.TargetObjectFlag}, []ecs.AnyPool{})
-	if len(tiles) > 1 {
-		panic("More than one targeted objects")
-	} else if len(tiles) == 0 {
-		return
-	}
-	tile := tiles[0]
 
-	occupied, err := pools.OccupiedPool.Component(tile)
-	if err != nil {
-		panic(err)
-	}
-
-	// skip if it is not move, but iteraction
-	if occupied.UnitObject != nil || occupied.StaticObject != nil || (occupied.ActiveObject != nil && !pools.SoftFlag.HasEntity(*occupied.ActiveObject)) {
-		return
-	}
-
-	unitPos, err := pools.PositionPool.Component(unit)
-	if err != nil {
-		panic(err)
-	}
-
-	tilePos, err := pools.PositionPool.Component(tile)
-	if err != nil {
-		panic(err)
-	}
-
-	pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 300, (tilePos.X-unitPos.X)*16, (tilePos.Y-unitPos.Y)*16, 0)})
-
-	for _, ent := range tiles {
-		pools.TargetObjectFlag.RemoveEntity(ent)
-	}
-
-	pools.MovePool.AddExistingEntity(unit, components.MoveDirection{X: int8(tilePos.X - unitPos.X), Y: int8(tilePos.Y - unitPos.Y)})
-
-}
-
-type UnitMoveSystem struct{}
-
-func (s *UnitMoveSystem) Run() {
-
-	if singletons.Turn.State == turnstate.Input {
-		return
-	}
-
-	// get targeted moving unit
-	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag, pools.TweenPool, pools.MovePool}, []ecs.AnyPool{})
-	if len(units) > 1 {
+	if len(units) > 1 { // если их больше чем 1 всё плохо
 		panic("More than one targeted units")
-	} else if len(units) == 0 {
-		return
-	}
-	unit := units[0]
+	} else if len(tiles) > 1 {
+		panic("More than one targeted objects")
+	} else if len(units) == 1 && len(tiles) == 1 { // если их по одному, то стартуем новую анимацию ИНАЧЕ идём проверять #2#
+		unit := units[0]
+		tile := tiles[0]
 
-	if !pools.TweenPool.HasEntity(unit) { //useless?
-		return
-	}
+		occupied, err := pools.OccupiedPool.Component(tile)
+		if err != nil {
+			panic(err)
+		}
 
-	t, err := pools.TweenPool.Component(unit)
-	if err != nil {
-		panic(err)
-	}
+		// Пропускаем если тайл занят (это атака или взаимодействие)
+		if occupied.UnitObject != nil || occupied.StaticObject != nil || (occupied.ActiveObject != nil && !pools.SoftFlag.HasEntity(*occupied.ActiveObject)) {
+			return
+		}
 
-	if t.Animation.IsEnded() {
+		println("now we muvin")
 		unitPos, err := pools.PositionPool.Component(unit)
 		if err != nil {
 			panic(err)
 		}
 
-		move, err := pools.MovePool.Component(unit)
+		tilePos, err := pools.PositionPool.Component(tile)
 		if err != nil {
 			panic(err)
 		}
 
-		for _, entity := range pools.OccupiedPool.Entities() {
-			occupied, err := pools.OccupiedPool.Component(entity)
-			if err != nil {
-				panic(err)
-			}
+		println("tween")
+		pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 300, (tilePos.X-unitPos.X)*16, (tilePos.Y-unitPos.Y)*16, 0)})
 
-			pos, err := pools.PositionPool.Component(entity)
-			if err != nil {
-				panic(err)
-			}
+		for _, ent := range tiles {
+			pools.TargetObjectFlag.RemoveEntity(ent)
+		}
+		println("move")
+		pools.MovePool.AddExistingEntity(unit, components.MoveDirection{X: int8(tilePos.X - unitPos.X), Y: int8(tilePos.Y - unitPos.Y)})
+		return // завершаем т.к. нет необходимости проверять завершение ходьбы на этом кадре
+	}
 
-			if occupied.UnitObject != nil && occupied.UnitObject.Equals(unit) && pos.X == unitPos.X && pos.Y == unitPos.Y {
-				println("remove from ", pos.X, " ", pos.Y)
-				occupied.UnitObject = nil
-			}
+	// #2# Проверка условий завершения анимации передвижения
 
-			if occupied.UnitObject == nil && pos.X == unitPos.X+int(move.X) && pos.Y == unitPos.Y+int(move.Y) {
-				println("add to ", pos.X, " ", pos.Y)
-				occupied.UnitObject = &unit
-			}
+	// Проверим есть ли юниты передвигающиеся в данный момент
+	units = ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag, pools.TweenPool, pools.MovePool}, []ecs.AnyPool{})
+
+	if len(units) > 1 { // Если взято в цель больше одного юнита -> всё плохо
+		panic("More than one targeted units")
+	} else if len(units) == 1 { // Нормальное состояние
+		unit := units[0]
+
+		if !pools.TweenPool.HasEntity(unit) { //useless?
+			return
 		}
 
-		unitPos.X += int(move.X)
-		unitPos.Y += int(move.Y)
+		t, err := pools.TweenPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
 
-		pools.TweenPool.RemoveEntity(unit)
-		pools.MovePool.RemoveEntity(unit)
+		// Если закончилась анимация ходьбы анимацию нужно убрать и изменить позицию юнита
+		if t.Animation.IsEnded() {
+			unitPos, err := pools.PositionPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
 
-		if singletons.Turn.State == turnstate.Action {
+			move, err := pools.MovePool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			for _, entity := range pools.OccupiedPool.Entities() {
+				occupied, err := pools.OccupiedPool.Component(entity)
+				if err != nil {
+					panic(err)
+				}
+
+				pos, err := pools.PositionPool.Component(entity)
+				if err != nil {
+					panic(err)
+				}
+
+				if occupied.UnitObject != nil && occupied.UnitObject.Equals(unit) && pos.X == unitPos.X && pos.Y == unitPos.Y {
+					println("remove from ", pos.X, " ", pos.Y)
+					occupied.UnitObject = nil
+				}
+
+				if occupied.UnitObject == nil && pos.X == unitPos.X+int(move.X) && pos.Y == unitPos.Y+int(move.Y) {
+					println("add to ", pos.X, " ", pos.Y)
+					occupied.UnitObject = &unit
+				}
+			}
+
+			unitPos.X += int(move.X)
+			unitPos.Y += int(move.Y)
+
+			pools.TweenPool.RemoveEntity(unit)
+			pools.MovePool.RemoveEntity(unit)
+
+			if singletons.Turn.State == turnstate.Action {
+				singletons.Turn.State = turnstate.Input
+			}
+
+			energy, err := pools.EnergyPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			class, err := pools.ClassPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			energy.Energy -= singletons.ClassStats[class.Class].MoveCost
+
+			// в конце удаляем флаги таргета для наблюдателя
+			// if singletons.Turn.State == turnstate.Wait {
+			// 	for _, ent := range pools.TargetUnitFlag.Entities() {
+			// 		pools.TargetUnitFlag.RemoveEntity(ent)
+			// 	}
+
+			// 	for _, ent := range pools.TargetObjectFlag.Entities() {
+			// 		pools.TargetObjectFlag.RemoveEntity(ent)
+			// 	}
+			// }
+		}
+	}
+}
+
+type AttackSystem struct{}
+
+func (s *AttackSystem) Run() {
+	// Если пользователь не смотрит анимацию (не Action или Wait)
+	if singletons.Turn.State == turnstate.Input {
+		return
+	}
+
+	// если есть юнит взятый в цель, который не двигается...
+	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{}) // TODO - AttackPool для анимации
+
+	// ... и тайл взятый в цель
+	tiles := ecs.PoolFilter([]ecs.AnyPool{pools.TileFlag, pools.TargetObjectFlag}, []ecs.AnyPool{})
+
+	if len(units) > 1 { // если их больше чем 1 всё плохо
+		panic("More than one targeted units")
+	} else if len(tiles) > 1 {
+		panic("More than one targeted objects")
+	} else if len(units) == 1 && len(tiles) == 1 {
+
+		unit := units[0]
+		tile := tiles[0]
+
+		occupied, err := pools.OccupiedPool.Component(tile)
+		if err != nil {
+			panic(err)
+		}
+
+		// Пропускаем если таргет не на тайле с юнитом
+		if occupied.UnitObject == nil || occupied.StaticObject != nil || (occupied.ActiveObject != nil && !pools.SoftFlag.HasEntity(*occupied.ActiveObject)) {
+			return
+		}
+
+		print("now we figtin")
+
+		health, err := pools.HealthPool.Component(*occupied.UnitObject)
+		if err != nil {
+			panic(err)
+		}
+
+		attackerClass, err := pools.ClassPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		attackerEnergy, err := pools.EnergyPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		health.Health -= singletons.ClassStats[attackerClass.Class].Attack
+		attackerEnergy.Energy -= singletons.ClassStats[attackerClass.Class].AttackCost
+
+	}
+
+}
+
+type EnergySystem struct{}
+
+func (s *EnergySystem) Run() {
+	// TODO WE ARE HERE
+
+	// Проверим не закончилась ли энергия у юнита в таргете
+	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{})
+	if len(units) > 1 { // если их больше чем 1 всё плохо
+		panic("More than one targeted units")
+	} else if len(units) == 1 {
+		unit := units[0]
+		energy, err := pools.EnergyPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		if energy.Energy == 0 {
+			println("CUZ U EXAUSTED")
+			singletons.Turn.IsTurnEnds = true
+		}
+	}
+
+	if singletons.Turn.IsTurnEnds {
+		log.Println("SKIPED!!!")
+		// передаём ход другому игроку
+		if singletons.Turn.CurrentTurn == teams.Blue {
+			singletons.Turn.CurrentTurn = teams.Red
+		} else {
+			singletons.Turn.CurrentTurn = teams.Blue
+		}
+
+		for _, ent := range pools.TargetUnitFlag.Entities() {
+			pools.TargetUnitFlag.RemoveEntity(ent)
+		}
+
+		for _, ent := range pools.TargetObjectFlag.Entities() {
+			pools.TargetObjectFlag.RemoveEntity(ent)
+		}
+
+		for _, ent := range pools.ActiveFlag.Entities() { // ? useless
+			pools.ActiveFlag.RemoveEntity(ent)
+		}
+
+		if singletons.AppState.GameMode == gamemode.Online {
+			println("I AM HERE WITH TURNSTATE: ", singletons.Turn.State.String())
+			if singletons.Turn.State == turnstate.Wait {
+				singletons.Turn.State = turnstate.Input
+			} else {
+				// network.SendSkip()
+				singletons.Turn.State = turnstate.Wait
+			}
+		} else {
+			if singletons.Turn.PlayerTeam == teams.Blue {
+				singletons.Turn.PlayerTeam = teams.Red
+			} else {
+				singletons.Turn.PlayerTeam = teams.Blue
+			}
 			singletons.Turn.State = turnstate.Input
 		}
 
-		if singletons.Turn.State == turnstate.Wait {
-			for _, ent := range pools.TargetUnitFlag.Entities() {
-				pools.TargetUnitFlag.RemoveEntity(ent)
+		units = ecs.PoolFilter([]ecs.AnyPool{pools.UnitFlag}, []ecs.AnyPool{})
+		for _, unit := range units {
+			energy, err := pools.EnergyPool.Component(unit)
+			if err != nil {
+				panic(err)
 			}
 
-			for _, ent := range pools.TargetObjectFlag.Entities() {
-				pools.TargetObjectFlag.RemoveEntity(ent)
+			class, err := pools.ClassPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+			if energy.Energy < singletons.ClassStats[class.Class].MaxEnergy {
+				energy.Energy += singletons.ClassStats[class.Class].EnergyPerTurn
 			}
 		}
+		singletons.Turn.IsTurnEnds = false
+		println("WEARE ACTUALY ENDING")
 	}
 }
 
@@ -427,6 +607,50 @@ func (s *DrawGhostsSystem) Run(screen *ebiten.Image) {
 	opt := &ebiten.DrawImageOptions{}
 	opt.GeoM.Scale(float64(singletons.View.Scale), float64(singletons.View.Scale))
 	screen.DrawImage(view, opt)
+}
+
+// TODO move with tween
+type DrawStatsSystem struct{}
+
+func (s *DrawStatsSystem) Run(screen *ebiten.Image) {
+	for _, unitEntity := range pools.UnitFlag.Entities() {
+		position, err := pools.PositionPool.Component(unitEntity)
+		if err != nil {
+			panic(err)
+		}
+
+		energy, err := pools.EnergyPool.Component(unitEntity)
+		if err != nil {
+			panic(err)
+		}
+
+		health, err := pools.HealthPool.Component(unitEntity)
+		if err != nil {
+			panic(err)
+		}
+
+		op := &text.DrawOptions{}
+		op.ColorScale.SetR(255)
+		op.ColorScale.SetG(255)
+		op.ColorScale.SetB(0)
+		op.ColorScale.SetA(255)
+
+		op.GeoM.Scale(float64(singletons.View.Scale)*0.25, float64(singletons.View.Scale)*0.25)
+		op.GeoM.Translate(float64((position.X*16+8)*singletons.View.Scale), float64((position.Y*16-4)*singletons.View.Scale))
+		text.Draw(screen, strconv.FormatUint(uint64(energy.Energy), 10), ui.TextFace, op)
+
+		op = &text.DrawOptions{}
+		// op.ColorScale.ScaleWithColor(color.RGBA{255, 255, 0, 0})
+		op.ColorScale.SetR(0)
+		op.ColorScale.SetG(225)
+		op.ColorScale.SetB(0)
+		op.ColorScale.SetA(255)
+
+		op.GeoM.Scale(float64(singletons.View.Scale)*0.25, float64(singletons.View.Scale)*0.25)
+		op.GeoM.Translate(float64((position.X*16)*singletons.View.Scale), float64((position.Y*16-4)*singletons.View.Scale))
+
+		text.Draw(screen, strconv.FormatUint(uint64(health.Health), 10), ui.TextFace, op)
+	}
 }
 
 func entityImage(objectEntity ecs.Entity, frameCount int) (*ebiten.Image, *ebiten.DrawImageOptions) {

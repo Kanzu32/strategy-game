@@ -18,6 +18,7 @@ import (
 	"strategy-game/util/data/turn/turnstate"
 	"strategy-game/util/ecs"
 	"strategy-game/util/ecs/psize"
+	"strategy-game/util/network"
 	"strategy-game/util/tile"
 	"strategy-game/util/ui"
 	"strategy-game/util/ui/uistate"
@@ -36,6 +37,7 @@ func InitPools(w *ecs.World) {
 	pools.TeamPool = ecs.CreateComponentPool[c.Team](w, psize.Page32)
 	pools.ClassPool = ecs.CreateComponentPool[c.Class](w, psize.Page16)
 	pools.EnergyPool = ecs.CreateComponentPool[c.Energy](w, psize.Page128)
+	pools.HealthPool = ecs.CreateComponentPool[c.Health](w, psize.Page128)
 	pools.TweenPool = ecs.CreateComponentPool[c.Tween](w, psize.Page128)
 	pools.MovePool = ecs.CreateComponentPool[c.MoveDirection](w, psize.Page128)
 	// pools.StandOnPool = ecs.CreateComponentPool[c.StandOn](w, psize.Page64)
@@ -55,13 +57,16 @@ func InitPools(w *ecs.World) {
 func InitSystems(w *ecs.World) {
 	ecs.AddRenderSystem(w, &systems.DrawWorldSystem{})
 	ecs.AddRenderSystem(w, &systems.DrawGhostsSystem{})
+	ecs.AddRenderSystem(w, &systems.DrawStatsSystem{})
 
 	ecs.AddSystem(w, &systems.TurnSystem{})
 	ecs.AddSystem(w, &systems.MarkActiveUnitsSystem{})
 	ecs.AddSystem(w, &systems.MarkActiveTilesSystem{})
 	ecs.AddSystem(w, &systems.NetworkSystem{})
-	ecs.AddSystem(w, &systems.TweenMoveSystem{})
-	ecs.AddSystem(w, &systems.UnitMoveSystem{})
+	// ecs.AddSystem(w, &systems.TweenMoveSystem{})
+	// ecs.AddSystem(w, &systems.UnitMoveSystem{})
+	ecs.AddSystem(w, &systems.MoveSystem{})
+	ecs.AddSystem(w, &systems.EnergySystem{})
 
 }
 
@@ -69,7 +74,8 @@ func InitStartData() {
 	if singletons.AppState.GameMode == gamemode.Local {
 		singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: teams.Blue, State: turnstate.Input}
 	} else {
-		team := <-singletons.Connection.TeamChan
+		team := <-network.TeamChan
+		println("TEAM:", team)
 		if team == teams.Blue {
 			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Input}
 		} else {
@@ -104,7 +110,7 @@ type Game struct {
 func (g *Game) StartGame() {
 	// ECS THINGS
 	if singletons.AppState.GameMode == gamemode.Online {
-		singletons.Connection.StartGameRequest()
+		network.StartGameRequest()
 	}
 	g.world = ecs.CreateWorld()
 	InitPools(g.world)
@@ -462,6 +468,8 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 				pools.TeamPool.AddExistingEntity(unitEntity, teamComp)
 
 				pools.EnergyPool.AddExistingEntity(unitEntity, c.Energy{Energy: singletons.ClassStats[class].MaxEnergy})
+
+				pools.HealthPool.AddExistingEntity(unitEntity, c.Health{Health: singletons.ClassStats[class].MaxHealth})
 
 				pools.GhostFlag.AddExistingEntity(unitEntity)
 

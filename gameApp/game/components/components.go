@@ -51,6 +51,10 @@ type Energy struct {
 	Energy uint8
 }
 
+type Health struct {
+	Health uint8
+}
+
 type Tween struct {
 	Animation tween.TweenAnimation
 }
