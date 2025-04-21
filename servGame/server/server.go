@@ -82,6 +82,7 @@ type Entity struct {
 type GameData struct {
 	UnitID Entity `json:"unitid"`
 	TileID Entity `json:"tileid"`
+	Skip   bool   // только на сервере
 }
 
 type GameStartData struct {
@@ -183,24 +184,29 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 				return
 			}
 
-			b, err := json.Marshal(gameData)
-			if err != nil {
-				log.Println("Ошибка при сериализации gameData для КРАСНОЙ команды")
-				return
+			if gameData.Skip == true {
+				b, err = json.Marshal(Packet{"SKIP", ""})
+				if err != nil {
+					log.Println("Ошибка при сериализации пакета gameData skip для КРАСНОЙ команды")
+					return
+				}
+				connRed.Write(b)
+				log.Println("С -> К Пакет: SKIP")
+			} else {
+				b, err := json.Marshal(gameData)
+				if err != nil {
+					log.Println("Ошибка при сериализации gameData для КРАСНОЙ команды")
+					return
+				}
+				b, err = json.Marshal(Packet{"GAMEDATA", string(b)})
+				if err != nil {
+					log.Println("Ошибка при сериализации пакета gameData для КРАСНОЙ команды")
+					return
+				}
+				connRed.Write(b)
+				log.Println("С -> К Пакет: ", gameData.UnitID.Id, gameData.TileID.Id)
 			}
-			b, err = json.Marshal(Packet{"GAMEDATA", string(b)})
-			if err != nil {
-				log.Println("Ошибка при сериализации пакета gameData для КРАСНОЙ команды")
-				return
-			}
-			connRed.Write(b)
-			log.Println("С -> К Пакет: ", gameData.UnitID.Id, gameData.TileID.Id)
 
-			// b, err = json.Marshal(Packet{"OK", ""})
-			// if err != nil {
-			// 	panic(err)
-			// }
-			// connBlue.Write(b)
 		case gameData, ok := <-redInputChan:
 
 			if ok == false {
@@ -208,24 +214,28 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 				return
 			}
 
-			b, err := json.Marshal(gameData)
-			if err != nil {
-				log.Println("Ошибка при сериализации gameData для СИНЕЙ команды")
-				return
+			if gameData.Skip == true {
+				b, err = json.Marshal(Packet{"SKIP", ""})
+				if err != nil {
+					log.Println("Ошибка при сериализации пакета gameData skip для СИНЕЙ команды")
+					return
+				}
+				connBlue.Write(b)
+				log.Println("К -> С Пакет: SKIP")
+			} else {
+				b, err := json.Marshal(gameData)
+				if err != nil {
+					log.Println("Ошибка при сериализации gameData для СИНЕЙ команды")
+					return
+				}
+				b, err = json.Marshal(Packet{"GAMEDATA", string(b)})
+				if err != nil {
+					log.Println("Ошибка при сериализации пакета gameData для СИНЕЙ команды")
+					return
+				}
+				connBlue.Write(b)
+				log.Println("К -> C Пакет: ", gameData.UnitID.Id, gameData.TileID.Id)
 			}
-			b, err = json.Marshal(Packet{"GAMEDATA", string(b)})
-			if err != nil {
-				log.Println("Ошибка при сериализации пакета gameData для СИНЕЙ команды")
-				return
-			}
-			connBlue.Write(b)
-			log.Println("R -> C Пакет: ", gameData.UnitID.Id, gameData.TileID.Id)
-
-			// b, err = json.Marshal(Packet{"OK", ""})
-			// if err != nil {
-			// 	panic(err)
-			// }
-			// connRed.Write(b)
 		}
 	}
 
@@ -295,6 +305,10 @@ func (s *Server) handleClientInput(conn net.Conn, inputChan chan<- GameData) {
 				log.Println("Ошибка при десериализации данных GameData от пользователя:", err)
 				return
 			}
+			inputChan <- data
+		} else if packet.Type == "SKIP" {
+			var data GameData
+			data.Skip = true
 			inputChan <- data
 		} else {
 			log.Println("Неизвестный тип пакета от пользователя")

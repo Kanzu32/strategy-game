@@ -10,11 +10,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[Input-1]
 	_ = x[Action-2]
+	_ = x[Wait-3]
 }
 
-const _TurnState_name = "InputAction"
+const _TurnState_name = "InputActionWait"
 
-var _TurnState_index = [...]uint8{0, 5, 11}
+var _TurnState_index = [...]uint8{0, 5, 11, 15}
 
 func (i TurnState) String() string {
 	i -= 1

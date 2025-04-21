@@ -6,9 +6,9 @@ import (
 	"net"
 	"net/http"
 	"strategy-game/game/pools"
+	"strategy-game/game/singletons"
 	"strategy-game/util/data/teams"
 	"strategy-game/util/ecs"
-	"sync"
 )
 
 type Packet struct {
@@ -30,17 +30,19 @@ type GameStartData struct {
 	Team string `json:"team"`
 }
 
-type ServerConnection struct {
-	conn     net.Conn
-	m        sync.Mutex
-	TeamChan chan teams.Team
-}
+// type ServerConnection struct {
+// 	conn     net.Conn
+// 	m        sync.Mutex
+// 	TeamChan chan teams.Team
+// }
 
-func (s *ServerConnection) StartGameRequest() {
+var conn net.Conn
+var TeamChan chan teams.Team
+
+func StartGameRequest() {
 	var err error
-	s.m.Lock()
-	defer s.m.Unlock()
-	s.conn, err = net.Dial("tcp", "127.0.0.1:4545")
+
+	conn, err = net.Dial("tcp", "127.0.0.1:4545")
 	if err != nil {
 		panic(err)
 	}
@@ -50,20 +52,20 @@ func (s *ServerConnection) StartGameRequest() {
 	if err != nil {
 		panic(err)
 	}
-	n, err := s.conn.Write(b)
+	n, err := conn.Write(b)
 	if n == 0 || err != nil {
 		panic(err)
 	}
 	println("game start req")
-	s.TeamChan = make(chan teams.Team)
-	go s.gameResponse()
+	TeamChan = make(chan teams.Team)
+	go gameResponse()
 }
 
-func (s *ServerConnection) gameResponse() {
+func gameResponse() {
 	for {
 		buf := make([]byte, 1024)
-		n, err := s.conn.Read(buf)
-		if n == 0 || err != nil {
+		n, err := conn.Read(buf)
+		if n == 0 || err != nil { // TODO закрываться здесь
 			panic(err)
 		}
 
@@ -81,9 +83,9 @@ func (s *ServerConnection) gameResponse() {
 				panic(err)
 			}
 			if data.Team == "BLUE" {
-				s.TeamChan <- teams.Blue
+				TeamChan <- teams.Blue
 			} else if data.Team == "RED" {
-				s.TeamChan <- teams.Red
+				TeamChan <- teams.Red
 			} else {
 				print("wrong team")
 			}
@@ -94,19 +96,23 @@ func (s *ServerConnection) gameResponse() {
 				panic(err)
 			}
 
-			pools.TargetUnitFlag.AddExistingEntity(data.UnitID)
+			_, err = pools.TargetUnitFlag.AddExistingEntity(data.UnitID)
+			if err != nil {
+				println("Target unit already been marked, its OK")
+			}
 			pools.TargetObjectFlag.AddExistingEntity(data.TileID)
 			println("ACTIVE: ", data.UnitID.Id, data.TileID.Id)
+		case "SKIP":
+			singletons.Turn.IsTurnEnds = true
+			println("SKIP")
 		default:
-			print(packet.Type)
+			println("!!!DEFAULT!!! :", packet.Type)
 		}
 	}
 
 }
 
-func (s *ServerConnection) SendGameData(unitID ecs.Entity, tileID ecs.Entity) {
-	s.m.Lock()
-	defer s.m.Unlock()
+func SendGameData(unitID ecs.Entity, tileID ecs.Entity) {
 	println("start send data")
 
 	b, err := json.Marshal(GameData{UnitID: unitID, TileID: tileID})
@@ -119,7 +125,22 @@ func (s *ServerConnection) SendGameData(unitID ecs.Entity, tileID ecs.Entity) {
 		panic(err)
 	}
 	print("Send: ", string(b))
-	n, err := s.conn.Write(b)
+	n, err := conn.Write(b)
+	if n == 0 || err != nil {
+		panic(err)
+	}
+	// s.conn.Read(b) // response
+}
+
+func SendSkip() {
+	println("start send skip")
+
+	b, err := json.Marshal(Packet{Type: "SKIP", Data: ""})
+	if err != nil {
+		panic(err)
+	}
+	print("Send: ", string(b))
+	n, err := conn.Write(b)
 	if n == 0 || err != nil {
 		panic(err)
 	}
