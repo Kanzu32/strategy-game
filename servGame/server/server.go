@@ -33,7 +33,7 @@ func (s *Server) Start(port string) {
 	// http.HandleFunc("/api/game/endturn", s.handleEndTurn)
 	// http.HandleFunc("/api/game/state", s.handleGameState)
 
-	log.Printf("Сервер запущен на порту %s", port)
+	log.Printf("Сервер запущен на порте %s", port)
 	log.Println("Доступные эндпоинты:")
 	log.Println("POST /api/register - Регистрация нового аккаунта")
 	log.Println("POST /api/login - Авторизация пользователя")
