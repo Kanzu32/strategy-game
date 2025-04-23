@@ -2,7 +2,6 @@ package assets
 
 import (
 	_ "embed"
-	"strategy-game/util/data/teams"
 )
 
 //go:embed ui/font/monogram-extended.ttf
@@ -21,10 +20,10 @@ var UtilTileset = "assets/tiles/tilesets/10_util-tileset.json"
 
 var Tilemap = "assets/tiles/tilemaps/tilemap.json"
 
-var Characters = map[teams.Team]string{
-	teams.Blue: "assets/img/blue.png",
-	teams.Red:  "assets/img/red.png",
-}
+// var Characters = map[teams.Team]string{
+// 	teams.Blue: "assets/img/blue.png",
+// 	teams.Red:  "assets/img/red.png",
+// }
 
 // var MainMenuBackground = "assets/ui/nine_slice/main_background.png"
 var NineSliceStandard = "assets/ui/nine_slice/nine_slice_ui_standard.png"

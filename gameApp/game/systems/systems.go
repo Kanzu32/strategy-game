@@ -6,6 +6,7 @@ import (
 	"strategy-game/game/components"
 	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
+	"strategy-game/util/data/directions"
 	"strategy-game/util/data/gamemode"
 	"strategy-game/util/data/teams"
 	"strategy-game/util/data/turn/turnstate"
@@ -215,13 +216,38 @@ func (s *MoveSystem) Run() {
 		}
 
 		println("tween")
-		pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 300, (tilePos.X-unitPos.X)*16, (tilePos.Y-unitPos.Y)*16, 0)})
+		pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 500, (tilePos.X-unitPos.X)*16, (tilePos.Y-unitPos.Y)*16, 0)})
+
+		sprite, err := pools.SpritePool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
 
 		for _, ent := range tiles {
 			pools.TargetObjectFlag.RemoveEntity(ent)
 		}
 		println("move")
-		pools.MovePool.AddExistingEntity(unit, components.MoveDirection{X: int8(tilePos.X - unitPos.X), Y: int8(tilePos.Y - unitPos.Y)})
+		c := components.MoveDirection{X: int8(tilePos.X - unitPos.X), Y: int8(tilePos.Y - unitPos.Y)}
+		pools.MovePool.AddExistingEntity(unit, c)
+
+		dir, err := pools.DirectionPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+		if c.X > 0 && c.Y == 0 {
+			dir.Direction = directions.Right
+			sprite.Sprite.SetAnimation("walk-right")
+		} else if c.X < 0 && c.Y == 0 {
+			dir.Direction = directions.Left
+			sprite.Sprite.SetAnimation("walk-left")
+		} else if c.X == 0 && c.Y < 0 {
+			dir.Direction = directions.Up
+			sprite.Sprite.SetAnimation("walk-up")
+		} else {
+			dir.Direction = directions.Down
+			sprite.Sprite.SetAnimation("walk-down")
+		}
+
 		return // завершаем т.к. нет необходимости проверять завершение ходьбы на этом кадре
 	}
 
@@ -283,6 +309,27 @@ func (s *MoveSystem) Run() {
 
 			pools.TweenPool.RemoveEntity(unit)
 			pools.MovePool.RemoveEntity(unit)
+
+			sprite, err := pools.SpritePool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			dir, err := pools.DirectionPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			switch dir.Direction {
+			case directions.Down:
+				sprite.Sprite.SetAnimation("idle-down")
+			case directions.Left:
+				sprite.Sprite.SetAnimation("idle-left")
+			case directions.Up:
+				sprite.Sprite.SetAnimation("idle-up")
+			case directions.Right:
+				sprite.Sprite.SetAnimation("idle-right")
+			}
 
 			if singletons.Turn.State == turnstate.Action {
 				singletons.Turn.State = turnstate.Input
@@ -617,7 +664,8 @@ func (s *DrawGhostsSystem) Run(screen *ebiten.Image) {
 type DrawStatsSystem struct{}
 
 func (s *DrawStatsSystem) Run(screen *ebiten.Image) {
-	view := singletons.View.Image
+	// Текст необходимо рисовать сращу на screen избегая view т.к. масштабировать текст плохо
+	// view := singletons.View.Image
 	for _, unitEntity := range pools.UnitFlag.Entities() {
 		position, err := pools.PositionPool.Component(unitEntity)
 		if err != nil {
@@ -640,9 +688,11 @@ func (s *DrawStatsSystem) Run(screen *ebiten.Image) {
 		op.ColorScale.SetB(0)
 		op.ColorScale.SetA(255)
 
-		op.GeoM.Scale(0.25, 0.25)
-		op.GeoM.Translate(float64((position.X*16 + 8)), float64((position.Y*16 - 4)))
-		text.Draw(view, strconv.FormatUint(uint64(energy.Energy), 10), ui.TextFace, op)
+		op.GeoM.Scale(float64(singletons.View.Scale)*0.25, float64(singletons.View.Scale)*0.25)
+		op.GeoM.Translate(float64((position.X*16+8)*singletons.View.Scale), float64((position.Y*16-4)*singletons.View.Scale))
+		op.GeoM.Translate(float64(singletons.View.ShiftX), float64(singletons.View.ShiftY))
+
+		text.Draw(screen, strconv.FormatUint(uint64(energy.Energy), 10), ui.TextFace, op)
 
 		op = &text.DrawOptions{}
 		// op.ColorScale.ScaleWithColor(color.RGBA{255, 255, 0, 0})
@@ -651,15 +701,16 @@ func (s *DrawStatsSystem) Run(screen *ebiten.Image) {
 		op.ColorScale.SetB(0)
 		op.ColorScale.SetA(255)
 
-		op.GeoM.Scale(0.25, 0.25)
-		op.GeoM.Translate(float64((position.X * 16)), float64((position.Y*16 - 4)))
+		op.GeoM.Scale(float64(singletons.View.Scale)*0.25, float64(singletons.View.Scale)*0.25)
+		op.GeoM.Translate(float64((position.X*16)*singletons.View.Scale), float64((position.Y*16-4)*singletons.View.Scale))
+		op.GeoM.Translate(float64(singletons.View.ShiftX), float64(singletons.View.ShiftY))
 
-		text.Draw(view, strconv.FormatUint(uint64(health.Health), 10), ui.TextFace, op)
+		text.Draw(screen, strconv.FormatUint(uint64(health.Health), 10), ui.TextFace, op)
 
-		opt := &ebiten.DrawImageOptions{}
-		opt.GeoM.Scale(float64(singletons.View.Scale), float64(singletons.View.Scale))
-		opt.GeoM.Translate(float64(singletons.View.ShiftX), float64(singletons.View.ShiftY))
-		screen.DrawImage(view, opt)
+		// opt := &ebiten.DrawImageOptions{}
+		// opt.GeoM.Scale(float64(singletons.View.Scale), float64(singletons.View.Scale))
+		// opt.GeoM.Translate(float64(singletons.View.ShiftX), float64(singletons.View.ShiftY))
+		// screen.DrawImage(view, opt)
 	}
 }
 
