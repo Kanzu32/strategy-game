@@ -294,7 +294,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	if !s.database.Register(account) {
 		log.Printf("Пользователь %s уже существует", req.Email)
-		respondWithError(w, "Имя пользователя уже занято", http.StatusConflict)
+		respondWithError(w, "Пользователь с таким email уже зарегистрирован", http.StatusConflict)
 		return
 	}
 
@@ -303,21 +303,25 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	log.Println("Обработка запроса на авторизацию")
 	var req struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, "Invalid request format", http.StatusBadRequest)
+		log.Printf("Ошибка декодирования запроса: %v", err)
+		respondWithError(w, "Неверный формат запроса", http.StatusBadRequest)
 		return
 	}
 
 	if !s.database.Authenticate(req.Email, req.Password) {
-		respondWithError(w, "Invalid credentials", http.StatusUnauthorized)
+		log.Printf("Неудачная попытка входа для пользователя %s", req.Email)
+		respondWithError(w, "Неверные учетные данные", http.StatusUnauthorized)
 		return
 	}
 
+	log.Printf("Успешная авторизация пользователя %s", req.Email)
 	respondWithJSON(w, map[string]string{"status": "success"})
 }
 
