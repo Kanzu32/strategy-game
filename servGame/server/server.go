@@ -2,7 +2,6 @@ package server
 
 import (
 	"SERV/database"
-	"SERV/gameemu"
 	"SERV/queue"
 	"bytes"
 	"encoding/json"
@@ -12,17 +11,36 @@ import (
 )
 
 type Server struct {
-	database    *database.Database
-	gameManager *gameemu.GameManager
-	userQueue   *queue.Queue
+	database  *database.Database
+	userQueue *queue.Queue
+}
+
+type Packet struct {
+	Type string `json:"type"`
+	Data string `json:"data"`
+}
+
+type Entity struct {
+	State   uint8  `json:"state"`
+	Id      uint16 `json:"id"`
+	Version uint8  `json:"version"`
+}
+
+type GameData struct {
+	UnitID Entity `json:"unitid"`
+	TileID Entity `json:"tileid"`
+	Skip   bool   // только на сервере
+}
+
+type GameStartData struct {
+	Team string `json:"team"`
 }
 
 func NewServer(database *database.Database) *Server {
 	log.Println("Создание нового сервера")
 	return &Server{
-		database:    database,
-		gameManager: gameemu.NewGameManager(),
-		userQueue:   queue.NewQueue(),
+		database:  database,
+		userQueue: queue.NewQueue(),
 	}
 }
 
@@ -66,27 +84,6 @@ func (s *Server) waitForGameConnections() {
 		}
 		go s.handleGameConnection(conn) // запускаем горутину для обработки запроса
 	}
-}
-
-type Packet struct {
-	Type string `json:"type"`
-	Data string `json:"data"`
-}
-
-type Entity struct {
-	State   uint8  `json:"state"`
-	Id      uint16 `json:"id"`
-	Version uint8  `json:"version"`
-}
-
-type GameData struct {
-	UnitID Entity `json:"unitid"`
-	TileID Entity `json:"tileid"`
-	Skip   bool   // только на сервере
-}
-
-type GameStartData struct {
-	Team string `json:"team"`
 }
 
 func (s *Server) handleGameConnection(conn net.Conn) {
@@ -238,46 +235,6 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 			}
 		}
 	}
-
-	// if gameData.UserTeam == "BLUE" {
-	// 	b, err := json.Marshal(gameData)
-	// 	if err != nil {
-	// 		log.Println("Ошибка при сериализации gameData для КРАСНОЙ команды")
-	// 		return
-	// 	}
-	// 	b, err = json.Marshal(Packet{"GAMEDATA", string(b)})
-	// 	if err != nil {
-	// 		log.Println("Ошибка при сериализации пакета gameData для КРАСНОЙ команды")
-	// 		return
-	// 	}
-	// 	connRed.Write(b)
-	// 	log.Println("С -> К Пакет: ", gameData.UserTeam, gameData.UnitID.Id, gameData.TileID.Id)
-
-	// 	// b, err = json.Marshal(Packet{"OK", ""})
-	// 	// if err != nil {
-	// 	// 	panic(err)
-	// 	// }
-	// 	// connBlue.Write(b)
-	// } else {
-	// 	b, err := json.Marshal(gameData)
-	// 	if err != nil {
-	// 		log.Println("Ошибка при сериализации gameData для СИНЕЙ команды")
-	// 		return
-	// 	}
-	// 	b, err = json.Marshal(Packet{"GAMEDATA", string(b)})
-	// 	if err != nil {
-	// 		log.Println("Ошибка при сериализации пакета gameData для СИНЕЙ команды")
-	// 		return
-	// 	}
-	// 	connBlue.Write(b)
-	// 	log.Println("R -> C Пакет: ", gameData.UserTeam, gameData.UnitID.Id, gameData.TileID.Id)
-
-	// 	// b, err = json.Marshal(Packet{"OK", ""})
-	// 	// if err != nil {
-	// 	// 	panic(err)
-	// 	// }
-	// 	// connRed.Write(b)
-	// }
 }
 
 func (s *Server) handleClientInput(conn net.Conn, inputChan chan<- GameData) {
@@ -363,69 +320,6 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, map[string]string{"status": "success"})
 }
-
-// func (s *Server) handleCreateGame(w http.ResponseWriter, r *http.Request) {
-// 	var req struct {
-// 		Player1 string `json:"player1"`
-// 		Player2 string `json:"player2"`
-// 	}
-
-// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-// 		respondWithError(w, "Invalid request format", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	sessionID, err := s.gameManager.CreateSession(req.Player1, req.Player2)
-// 	if err != nil {
-// 		respondWithError(w, err.Error(), http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	if err := s.gameManager.StartSession(sessionID); err != nil {
-// 		respondWithError(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	respondWithJSON(w, map[string]string{
-// 		"session_id": sessionID,
-// 		"status":     "created",
-// 	})
-// }
-
-// func (s *Server) handleEndTurn(w http.ResponseWriter, r *http.Request) {
-// 	var req struct {
-// 		SessionID string `json:"session_id"`
-// 		PlayerID  string `json:"player_id"`
-// 	}
-
-// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-// 		respondWithError(w, "Invalid request format", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	if err := s.gameManager.EndTurn(req.SessionID, req.PlayerID); err != nil {
-// 		respondWithError(w, err.Error(), http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	respondWithJSON(w, map[string]string{"status": "success"})
-// }
-
-// func (s *Server) handleGameState(w http.ResponseWriter, r *http.Request) {
-// 	playerID := r.URL.Query().Get("player_id")
-// 	if playerID == "" {
-// 		respondWithError(w, "player_id parameter is required", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	session, err := s.gameManager.GetSession(playerID)
-// 	if err != nil {
-// 		respondWithError(w, err.Error(), http.StatusNotFound)
-// 		return
-// 	}
-
-// 	respondWithJSON(w, session)
-// }
 
 func respondWithJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
