@@ -11,6 +11,7 @@ import (
 	"strategy-game/game/systems"
 
 	"strategy-game/util/data/classes"
+	"strategy-game/util/data/directions"
 	"strategy-game/util/data/gamemode"
 	"strategy-game/util/data/sprite"
 	"strategy-game/util/data/teams"
@@ -40,6 +41,7 @@ func InitPools(w *ecs.World) {
 	pools.HealthPool = ecs.CreateComponentPool[c.Health](w, psize.Page128)
 	pools.TweenPool = ecs.CreateComponentPool[c.Tween](w, psize.Page128)
 	pools.MovePool = ecs.CreateComponentPool[c.MoveDirection](w, psize.Page128)
+	pools.DirectionPool = ecs.CreateComponentPool[c.Direction](w, psize.Page64)
 	// pools.StandOnPool = ecs.CreateComponentPool[c.StandOn](w, psize.Page64)
 
 	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
@@ -361,6 +363,9 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 			if tileData.IsWall {
 				pools.WallFlag.AddExistingEntity(tileEntity)
 			} else if tileData.IsUnit {
+
+				// #1# ИНИЦИАЛИЗАЦИЯ ЮНИТА И ДОБАВЛЕНИЕ НА ТАЙЛ
+
 				team := teams.Blue
 				class := classes.Shield
 				switch tileData.Class {
@@ -371,7 +376,8 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 				case 2: // ROGUE
 					class = classes.Knife
 				case 3: // ARCHER
-					class = classes.Bow
+					// class = classes.Bow // TODO add bows
+					class = classes.Knife
 				default:
 					panic("UNEXPECTED CLASS")
 				}
@@ -385,54 +391,48 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 					panic("UNEXPECTED TEAM")
 				}
 
-				//img, _, err := ebitenutil.NewImageFromFile("assets/img/" + team + "-" + class + ".png")
+				img, _, err := ebitenutil.NewImageFromFile("assets/img/" + team.String() + "-" + class.String() + ".png")
 				// print(class.String())
 
-				// TODO SKINS
-				img, _, err := ebitenutil.NewImageFromFile(assets.Characters[team])
+				// img, _, err := ebitenutil.NewImageFromFile(assets.Characters[team])
 				if err != nil {
 					panic(err)
 				}
-				spr := sprite.NewSprite(img, 16, 16)
+				spr := sprite.NewSprite(img, 48, 48)
 				// spr.AddAnimation("default", []sprite.Frame{
 				// 	{N: 0, Time: 5000},
 				// })
 				spr.AddAnimation("idle-down", []sprite.Frame{
 					{N: 0, Time: 5000},
 				})
+				spr.AddAnimation("idle-right", []sprite.Frame{
+					{N: 11, Time: 5000},
+				})
 				spr.AddAnimation("idle-up", []sprite.Frame{
-					{N: 1, Time: 5000},
+					{N: 22, Time: 5000},
 				})
 				spr.AddAnimation("idle-left", []sprite.Frame{
-					{N: 2, Time: 5000},
+					{N: 33, Time: 5000},
 				})
-				spr.AddAnimation("idle-right", []sprite.Frame{
-					{N: 3, Time: 5000},
-				})
-
 				spr.AddAnimation("walk-down", []sprite.Frame{
-					{N: 0, Time: 200},
-					{N: 4, Time: 200},
-					{N: 8, Time: 200},
-					{N: 12, Time: 200},
-				})
-				spr.AddAnimation("walk-up", []sprite.Frame{
-					{N: 1, Time: 200},
-					{N: 5, Time: 200},
-					{N: 9, Time: 200},
-					{N: 13, Time: 200},
-				})
-				spr.AddAnimation("walk-left", []sprite.Frame{
-					{N: 2, Time: 200},
-					{N: 6, Time: 200},
-					{N: 10, Time: 200},
-					{N: 14, Time: 200},
+					{N: 0, Time: 100},
+					{N: 1, Time: 100},
+					{N: 2, Time: 100},
 				})
 				spr.AddAnimation("walk-right", []sprite.Frame{
-					{N: 3, Time: 200},
-					{N: 7, Time: 200},
-					{N: 11, Time: 200},
-					{N: 15, Time: 200},
+					{N: 11, Time: 100},
+					{N: 12, Time: 100},
+					{N: 13, Time: 100},
+				})
+				spr.AddAnimation("walk-up", []sprite.Frame{
+					{N: 22, Time: 100},
+					{N: 23, Time: 100},
+					{N: 24, Time: 100},
+				})
+				spr.AddAnimation("walk-left", []sprite.Frame{
+					{N: 33, Time: 100},
+					{N: 34, Time: 100},
+					{N: 35, Time: 100},
 				})
 
 				spr.AddAnimation("action-down", []sprite.Frame{
@@ -457,7 +457,7 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 				}
 
 				opt := ebiten.DrawImageOptions{}
-				opt.GeoM.Translate(0, -float64(tileData.Sprite.Height()-16))
+				opt.GeoM.Translate(-float64(16), -float64(16))
 				pools.ImageRenderPool.AddExistingEntity(unitEntity, c.ImageRender{Options: opt})
 
 				positionComp := c.Position{X: i % utilLayer.Width, Y: i / utilLayer.Width}
@@ -473,8 +473,11 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 
 				pools.HealthPool.AddExistingEntity(unitEntity, c.Health{Health: singletons.ClassStats[class].MaxHealth})
 
+				pools.DirectionPool.AddExistingEntity(unitEntity, c.Direction{Direction: directions.Down})
+
 				pools.GhostFlag.AddExistingEntity(unitEntity)
 
+				// Добавление юнита на тайл
 				pools.UnitFlag.AddExistingEntity(unitEntity)
 				occupiedComp.UnitObject = &unitEntity
 

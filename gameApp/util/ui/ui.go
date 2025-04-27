@@ -203,13 +203,14 @@ func handleGameInput() {
 				panic(err)
 			}
 
-			sprite, err := pools.SpritePool.Component(entity)
-			if err != nil {
-				panic(err)
-			}
+			// sprite, err := pools.SpritePool.Component(entity)
+			// if err != nil {
+			// 	panic(err)
+			// }
 
-			if position.X*16 < xPosGame && xPosGame < position.X*16+sprite.Sprite.Width() &&
-				position.Y*16 < yPosGame && yPosGame < position.Y*16+sprite.Sprite.Height() {
+			// 16 - длина одного тайла и нас не интересует конкретный спрайт, а лишь область 16x16
+			if position.X*16 < xPosGame && xPosGame < (position.X+1)*16 &&
+				position.Y*16 < yPosGame && yPosGame < (position.Y+1)*16 {
 
 				// объект, взятый в цель, явл. тайлом (выбрать объект в цель для действия)
 				if pools.TargetObjectFlag.HasEntity(entity) && pools.TileFlag.HasEntity(entity) {

@@ -2,6 +2,7 @@ package components
 
 import (
 	"strategy-game/util/data/classes"
+	"strategy-game/util/data/directions"
 	"strategy-game/util/data/material"
 	"strategy-game/util/data/side"
 	"strategy-game/util/data/sprite"
@@ -62,6 +63,10 @@ type Tween struct {
 type MoveDirection struct {
 	X int8
 	Y int8
+}
+
+type Direction struct {
+	Direction directions.Direction
 }
 
 // type StandOn struct {
