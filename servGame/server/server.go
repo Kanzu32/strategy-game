@@ -283,7 +283,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("Ошибка декодирования запроса: %v", err)
-		respondWithError(w, "Неверный формат запроса", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest)
 		return
 	}
 
@@ -292,9 +292,11 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		Email:    req.Email,
 	}
 
-	if !s.database.Register(account) {
-		log.Printf("Пользователь %s уже существует", req.Email)
-		respondWithError(w, "Пользователь с таким email уже зарегистрирован", http.StatusConflict)
+	err := s.database.Register(account)
+
+	if err != nil {
+		log.Print(err)
+		respondWithError(w, http.StatusConflict)
 		return
 	}
 
@@ -311,13 +313,14 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("Ошибка декодирования запроса: %v", err)
-		respondWithError(w, "Неверный формат запроса", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest)
 		return
 	}
 
-	if !s.database.Authenticate(req.Email, req.Password) {
-		log.Printf("Неудачная попытка входа для пользователя %s", req.Email)
-		respondWithError(w, "Неверные учетные данные", http.StatusUnauthorized)
+	err := s.database.Authenticate(req.Email, req.Password)
+	if err != nil {
+		log.Print(err)
+		respondWithError(w, http.StatusUnauthorized)
 		return
 	}
 
@@ -330,8 +333,8 @@ func respondWithJSON(w http.ResponseWriter, data interface{}) {
 	json.NewEncoder(w).Encode(data)
 }
 
-func respondWithError(w http.ResponseWriter, message string, code int) {
-	log.Printf("Ошибка: %s (код %d)", message, code)
+func respondWithError(w http.ResponseWriter, code int) {
+	log.Printf("Возвращаемый код ошибки: %d", code)
 	// respondWithJSON(w, map[string]string{"error": message})
 	w.WriteHeader(code)
 }

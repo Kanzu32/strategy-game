@@ -2,6 +2,8 @@ package database
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -37,41 +39,41 @@ func NewDatabase(uri, dbName, collectionName string) *Database {
 	return &Database{client: client, collection: collection}
 }
 
-func (db *Database) Authenticate(email, password string) bool {
-	log.Printf("Аутентификация пользователя: %s", email)
+func (db *Database) Authenticate(email, password string) error {
+	// log.Printf("Аутентификация пользователя: %s", email)
 	filter := bson.M{"email": email}
 	var result Account
 	err := db.collection.FindOne(context.TODO(), filter).Decode(&result)
 	if err != nil {
-		log.Printf("Ошибка поиска пользователя: %v", err)
-		return false
+		return errors.New(fmt.Sprintf("Ошибка поиска пользователя в базе данных: %v", err))
 	}
 
 	if result.Password != password {
-		log.Printf("Неверный пароль для пользователя %s", email)
-		return false
+		// log.Printf("Неверный пароль для пользователя %s", email)
+		return errors.New(fmt.Sprintf("Неверный пароль для пользователя %s", email))
 	}
 
-	log.Printf("Успешная аутентификация пользователя %s", email)
-	return true
+	// log.Printf("Успешная аутентификация пользователя %s", email)
+	return nil
 }
 
-func (db *Database) Register(account *Account) bool {
-	log.Printf("Регистрация нового пользователя: %s", account.Email)
+func (db *Database) Register(account *Account) error {
+	// log.Printf("Регистрация нового пользователя: %s", account.Email)
 	filter := bson.M{"email": account.Email}
 	var existing Account
 	err := db.collection.FindOne(context.TODO(), filter).Decode(&existing)
 	if err == nil {
-		log.Printf("Пользователь %s уже существует", account.Email)
-		return false
+		// log.Printf("Пользователь %s уже существует в базе данных", account.Email)
+
+		return errors.New(fmt.Sprintf("Пользователь %s уже существует в базе данных", account.Email))
 	}
 
 	_, err = db.collection.InsertOne(context.TODO(), account)
 	if err != nil {
-		log.Printf("Ошибка при регистрации пользователя: %v", err)
-		return false
+		// log.Printf("Ошибка при добавлении пользователя в базу данных: %v", err)
+		return errors.New(fmt.Sprintf("Ошибка при добавлении пользователя в базу данных: %v", err))
 	}
 
-	log.Printf("Пользователь %s успешно зарегистрирован", account.Email)
-	return true
+	// log.Printf("Пользователь %s успешно добавлен в базу данных", account.Email)
+	return nil
 }
