@@ -32,14 +32,36 @@ func (t *TweenAnimation) Animate() TransitionValues {
 	if t.CurrentFrameTime < t.FrameTime {
 		t.CurrentFrameTime = t.CurrentFrameTime + 1
 	}
-	return TransitionValues{
-		X:     t.DeltaValues.X * t.CurrentFrameTime,
-		Y:     t.DeltaValues.Y * t.CurrentFrameTime,
-		Angle: t.DeltaValues.Angle * t.CurrentFrameTime,
-	}
+
+	return t.GetValue()
 }
 
-func (t *TweenAnimation) GetValue() TransitionValues {
+func (t *TweenAnimation) GetValue() TransitionValues { // получить текущее значение анимации не переходя на след. кадр
+	switch t.Type {
+	case tweentype.Linear:
+		return TransitionValues{
+			X:     t.DeltaValues.X * t.CurrentFrameTime,
+			Y:     t.DeltaValues.Y * t.CurrentFrameTime,
+			Angle: t.DeltaValues.Angle * t.CurrentFrameTime,
+		}
+	case tweentype.Back75Forward25:
+		if t.CurrentFrameTime < t.FrameTime*0.75 {
+			return TransitionValues{
+				X:     t.DeltaValues.X * -t.CurrentFrameTime,
+				Y:     t.DeltaValues.Y * -t.CurrentFrameTime,
+				Angle: t.DeltaValues.Angle * -t.CurrentFrameTime,
+			}
+		} else {
+			return TransitionValues{
+				X:     t.DeltaValues.X * (-(t.FrameTime * 0.75) + t.CurrentFrameTime*1.5),
+				Y:     t.DeltaValues.Y * (-(t.FrameTime * 0.75) + t.CurrentFrameTime*1.5),
+				Angle: t.DeltaValues.Angle * (-(t.FrameTime * 0.75) + t.CurrentFrameTime*1.5),
+			}
+		}
+	}
+
+	print("Tween animation type is missing")
+	// default linear
 	return TransitionValues{
 		X:     t.DeltaValues.X * t.CurrentFrameTime,
 		Y:     t.DeltaValues.Y * t.CurrentFrameTime,

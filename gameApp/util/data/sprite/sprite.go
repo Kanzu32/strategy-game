@@ -2,6 +2,7 @@ package sprite
 
 import (
 	"image"
+	"strategy-game/game/singletons"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -12,14 +13,15 @@ type Frame struct {
 }
 
 type Sprite struct {
-	image            *ebiten.Image
-	Animations       map[string][]Frame
-	width            int
-	height           int
-	framesX          int
-	framesY          int
-	currentAnimation string
-	currentFrame     int
+	image               *ebiten.Image
+	Animations          map[string][]Frame
+	width               int
+	height              int
+	framesX             int
+	framesY             int
+	currentAnimation    string
+	currentFrame        int
+	animationStartFrame int
 }
 
 func (s *Sprite) Width() int {
@@ -47,13 +49,21 @@ func NewSprite(img *ebiten.Image, w int, h int) Sprite {
 	return s
 }
 
-func (s *Sprite) Animate(frameCounter int) *ebiten.Image {
+func (s *Sprite) AnimationProgress() float64 {
+	time := 0
+	for _, frame := range s.Animations[s.currentAnimation] {
+		time += frame.Time
+	}
+	return float64(timeToFrames(time)) / float64(s.currentFrame+1)
+}
+
+func (s *Sprite) Animate() *ebiten.Image {
 	frames, ok := s.Animations[s.currentAnimation]
 	if !ok || s.currentFrame < 0 || s.currentFrame > len(frames) {
 		return nil
 	}
 	var f Frame
-	if frameCounter%timeToFrames(frames[s.currentFrame].Time) != 0 {
+	if (singletons.FrameCount-s.animationStartFrame)%timeToFrames(frames[s.currentFrame].Time) != 0 {
 		f = frames[s.currentFrame]
 	} else {
 		s.currentFrame = (s.currentFrame + 1) % len(frames)
@@ -75,6 +85,7 @@ func (s *Sprite) SetAnimation(animationName string) {
 	}
 	s.currentAnimation = animationName
 	s.currentFrame = 0
+	s.animationStartFrame = singletons.FrameCount
 }
 
 func (s *Sprite) AddAnimation(animationName string, frames []Frame) {

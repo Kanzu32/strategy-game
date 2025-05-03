@@ -413,6 +413,34 @@ func (s *AttackSystem) Run() {
 			panic(err)
 		}
 
+		attackerDirection, err := pools.DirectionPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		sprite, err := pools.SpritePool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		// TODO WE ARE HERE
+
+		// TODO может быть здесь нужно твин анимация
+		switch attackerDirection.Direction {
+		case directions.Down:
+			pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Back75Forward25, 1000, 0, 8, 0)})
+			sprite.Sprite.SetAnimation("attack-down")
+		case directions.Up:
+			pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Back75Forward25, 1000, 0, -8, 0)})
+			sprite.Sprite.SetAnimation("attack-up")
+		case directions.Right:
+			pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Back75Forward25, 1000, 8, 0, 0)})
+			sprite.Sprite.SetAnimation("attack-right")
+		case directions.Left:
+			pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Back75Forward25, 1000, -8, 0, 0)})
+			sprite.Sprite.SetAnimation("attack-left")
+		}
+
 		health.Health -= singletons.ClassStats[attackerClass.Class].Attack
 		attackerEnergy.Energy -= singletons.ClassStats[attackerClass.Class].AttackCost
 
@@ -423,7 +451,7 @@ func (s *AttackSystem) Run() {
 type EnergySystem struct{}
 
 func (s *EnergySystem) Run() {
-	// TODO WE ARE HERE
+	// TODO if any need
 
 	// Проверим не закончилась ли энергия у юнита в таргете
 	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{})
@@ -509,7 +537,6 @@ type DrawWorldSystem struct{}
 func (s *DrawWorldSystem) Run(screen *ebiten.Image) {
 	unitRenderQueue := []ecs.Entity{}
 	objectRenderQueue := []ecs.Entity{}
-	frameCount := singletons.FrameCount
 	view := singletons.View.Image
 
 	// tile render
@@ -544,7 +571,7 @@ func (s *DrawWorldSystem) Run(screen *ebiten.Image) {
 		}
 
 		options.Filter = render.Options.Filter
-		view.DrawImage(sprite.Sprite.Animate(frameCount), &options)
+		view.DrawImage(sprite.Sprite.Animate(), &options)
 
 		// add objects to queue
 		occupied, err := pools.OccupiedPool.Component(tileEntity)
@@ -567,7 +594,7 @@ func (s *DrawWorldSystem) Run(screen *ebiten.Image) {
 
 	//unit render
 	for _, unitEntity := range unitRenderQueue {
-		img, opt := entityImage(unitEntity, frameCount)
+		img, opt := entityImage(unitEntity)
 
 		// units highlight
 		if pools.TargetUnitFlag.HasEntity(unitEntity) {
@@ -593,7 +620,7 @@ func (s *DrawWorldSystem) Run(screen *ebiten.Image) {
 
 	// object queue
 	for _, objectEntity := range objectRenderQueue {
-		img, opt := entityImage(objectEntity, frameCount)
+		img, opt := entityImage(objectEntity)
 
 		// objects highlight
 		if pools.TargetObjectFlag.HasEntity(objectEntity) {
@@ -616,7 +643,6 @@ func (s *DrawWorldSystem) Run(screen *ebiten.Image) {
 type DrawGhostsSystem struct{}
 
 func (s *DrawGhostsSystem) Run(screen *ebiten.Image) {
-	frameCount := singletons.FrameCount
 	view := singletons.View.Image
 	for _, ghostEntity := range pools.GhostFlag.Entities() {
 		position, err := pools.PositionPool.Component(ghostEntity)
@@ -651,7 +677,7 @@ func (s *DrawGhostsSystem) Run(screen *ebiten.Image) {
 		options.ColorScale = render.Options.ColorScale
 		options.ColorScale.ScaleAlpha(0.6)
 		options.Filter = render.Options.Filter
-		view.DrawImage(sprite.Sprite.Animate(frameCount), &options)
+		view.DrawImage(sprite.Sprite.Animate(), &options)
 	}
 
 	opt := &ebiten.DrawImageOptions{}
@@ -714,7 +740,7 @@ func (s *DrawStatsSystem) Run(screen *ebiten.Image) {
 	}
 }
 
-func entityImage(objectEntity ecs.Entity, frameCount int) (*ebiten.Image, *ebiten.DrawImageOptions) {
+func entityImage(objectEntity ecs.Entity) (*ebiten.Image, *ebiten.DrawImageOptions) {
 	position, err := pools.PositionPool.Component(objectEntity)
 	if err != nil {
 		panic(err)
@@ -737,7 +763,7 @@ func entityImage(objectEntity ecs.Entity, frameCount int) (*ebiten.Image, *ebite
 	options.Blend = render.Options.Blend
 	options.ColorScale = render.Options.ColorScale
 	options.Filter = render.Options.Filter
-	return sprite.Sprite.Animate(frameCount), &options
+	return sprite.Sprite.Animate(), &options
 }
 
 func positionsDistance(a *components.Position, b *components.Position) float64 {

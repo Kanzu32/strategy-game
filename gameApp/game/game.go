@@ -435,19 +435,22 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 					{N: 35, Time: 100},
 				})
 
-				spr.AddAnimation("action-down", []sprite.Frame{
-					{N: 16, Time: 500},
+				spr.AddAnimation("attack-down", []sprite.Frame{
+					{N: 0, Time: 750},
+					{N: 3, Time: 5000},
 				})
-				spr.AddAnimation("action-up", []sprite.Frame{
-					{N: 17, Time: 500},
+				spr.AddAnimation("attack-right", []sprite.Frame{
+					{N: 11, Time: 750},
+					{N: 14, Time: 5000},
 				})
-				spr.AddAnimation("action-left", []sprite.Frame{
-					{N: 18, Time: 500},
+				spr.AddAnimation("attack-up", []sprite.Frame{
+					{N: 22, Time: 750},
+					{N: 25, Time: 5000},
 				})
-				spr.AddAnimation("action-right", []sprite.Frame{
-					{N: 19, Time: 500},
+				spr.AddAnimation("attack-left", []sprite.Frame{
+					{N: 33, Time: 750},
+					{N: 36, Time: 5000},
 				})
-
 				spr.SetAnimation("idle-down")
 
 				spriteComp := c.Sprite{Sprite: spr}
