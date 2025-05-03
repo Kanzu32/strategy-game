@@ -85,7 +85,8 @@ func (s *Sprite) SetAnimation(animationName string) {
 	}
 	s.currentAnimation = animationName
 	s.currentFrame = 0
-	s.animationStartFrame = singletons.FrameCount
+	s.animationStartFrame = singletons.FrameCount - 1
+	println("ANIMATION SET ", animationName)
 }
 
 func (s *Sprite) AddAnimation(animationName string, frames []Frame) {

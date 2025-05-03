@@ -18,6 +18,8 @@ var HealthPool *ecs.ComponentPool[c.Health]
 var TweenPool *ecs.ComponentPool[c.Tween]
 var MovePool *ecs.ComponentPool[c.MoveDirection]
 var DirectionPool *ecs.ComponentPool[c.Direction]
+var AttackPool *ecs.ComponentPool[c.Attack]
+var HitPool *ecs.ComponentPool[c.Hit]
 
 // var StandOnPool *ecs.ComponentPool[c.StandOn]
 

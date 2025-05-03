@@ -42,6 +42,8 @@ func InitPools(w *ecs.World) {
 	pools.TweenPool = ecs.CreateComponentPool[c.Tween](w, psize.Page128)
 	pools.MovePool = ecs.CreateComponentPool[c.MoveDirection](w, psize.Page128)
 	pools.DirectionPool = ecs.CreateComponentPool[c.Direction](w, psize.Page64)
+	pools.AttackPool = ecs.CreateComponentPool[c.Attack](w, psize.Page32)
+	pools.HitPool = ecs.CreateComponentPool[c.Hit](w, psize.Page16)
 	// pools.StandOnPool = ecs.CreateComponentPool[c.StandOn](w, psize.Page64)
 
 	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
@@ -135,6 +137,12 @@ func (g *Game) StartGame() {
 	InitTileEntities(tilesets, assets.Tilemap)
 	InitStartData()
 	InitSystems(g.world)
+
+	// img, _, err := ebitenutil.NewImageFromFile(assets.CutPath)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// assets.CutImage = img // загрузка картинки т.к. иначе её придётся создавать и удалять несколько раз за игру
 }
 
 // func (g *Game) handleInput() {

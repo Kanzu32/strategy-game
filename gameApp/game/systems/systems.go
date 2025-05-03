@@ -6,6 +6,7 @@ import (
 	"strategy-game/game/components"
 	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
+	"strategy-game/util/data/classes"
 	"strategy-game/util/data/directions"
 	"strategy-game/util/data/gamemode"
 	"strategy-game/util/data/teams"
@@ -369,8 +370,8 @@ func (s *AttackSystem) Run() {
 		return
 	}
 
-	// если есть юнит взятый в цель, который не двигается...
-	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{}) // TODO - AttackPool для анимации
+	// если есть юнит взятый в цель, который не атакует...
+	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{pools.TweenPool, pools.AttackPool}) // TODO - AttackPool для анимации
 
 	// ... и тайл взятый в цель
 	tiles := ecs.PoolFilter([]ecs.AnyPool{pools.TileFlag, pools.TargetObjectFlag}, []ecs.AnyPool{})
@@ -379,7 +380,7 @@ func (s *AttackSystem) Run() {
 		panic("More than one targeted units")
 	} else if len(tiles) > 1 {
 		panic("More than one targeted objects")
-	} else if len(units) == 1 && len(tiles) == 1 {
+	} else if len(units) == 1 && len(tiles) == 1 { // если их по одному, то стартуем новую анимацию ИНАЧЕ идём проверять #2#
 
 		println("u can win dis figt")
 
@@ -391,24 +392,15 @@ func (s *AttackSystem) Run() {
 			panic(err)
 		}
 
-		// Пропускаем если таргет не на тайле с юнитом
+		// Пропускаем если таргет не на тайле с юнитом (это ходьба или взаимодействие)
 		if occupied.UnitObject == nil || occupied.StaticObject != nil || (occupied.ActiveObject != nil && !pools.SoftFlag.HasEntity(*occupied.ActiveObject)) {
 			return
 		}
+		// иначе начинаем анимацию атаки
 
 		println("now we figtin")
 
-		health, err := pools.HealthPool.Component(*occupied.UnitObject)
-		if err != nil {
-			panic(err)
-		}
-
-		attackerClass, err := pools.ClassPool.Component(unit)
-		if err != nil {
-			panic(err)
-		}
-
-		attackerEnergy, err := pools.EnergyPool.Component(unit)
+		position, err := pools.PositionPool.Component(*occupied.UnitObject)
 		if err != nil {
 			panic(err)
 		}
@@ -418,34 +410,185 @@ func (s *AttackSystem) Run() {
 			panic(err)
 		}
 
-		sprite, err := pools.SpritePool.Component(unit)
+		attackerSprite, err := pools.SpritePool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		attackerPosition, err := pools.PositionPool.Component(unit)
 		if err != nil {
 			panic(err)
 		}
 
 		// TODO WE ARE HERE
+		deltaX := position.X - attackerPosition.X
+		deltaY := position.Y - attackerPosition.Y
+		if math.Abs(float64(deltaX)) > math.Abs(float64(deltaY)) {
+			if deltaX > 0 {
+				attackerDirection.Direction = directions.Right
+			} else {
+				attackerDirection.Direction = directions.Left
+			}
+		} else {
+			if deltaY > 0 {
+				attackerDirection.Direction = directions.Down
+			} else {
+				attackerDirection.Direction = directions.Up
+			}
+		}
 
-		// TODO может быть здесь нужно твин анимация
 		switch attackerDirection.Direction {
 		case directions.Down:
 			pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Back75Forward25, 1000, 0, 8, 0)})
-			sprite.Sprite.SetAnimation("attack-down")
+			attackerSprite.Sprite.SetAnimation("attack-down")
 		case directions.Up:
 			pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Back75Forward25, 1000, 0, -8, 0)})
-			sprite.Sprite.SetAnimation("attack-up")
+			attackerSprite.Sprite.SetAnimation("attack-up")
 		case directions.Right:
 			pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Back75Forward25, 1000, 8, 0, 0)})
-			sprite.Sprite.SetAnimation("attack-right")
+			attackerSprite.Sprite.SetAnimation("attack-right")
 		case directions.Left:
 			pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Back75Forward25, 1000, -8, 0, 0)})
-			sprite.Sprite.SetAnimation("attack-left")
+			attackerSprite.Sprite.SetAnimation("attack-left")
 		}
 
-		health.Health -= singletons.ClassStats[attackerClass.Class].Attack
-		attackerEnergy.Energy -= singletons.ClassStats[attackerClass.Class].AttackCost
+		pools.AttackPool.AddExistingEntity(unit, components.Attack{Target: occupied.UnitObject})
 
+		for _, ent := range tiles {
+			pools.TargetObjectFlag.RemoveEntity(ent)
+		}
+
+		return
+		// TODO анимация резки на глефе
+
+		// if attackerClass.Class == classes.Glaive {
+		// 	spr := sprite.NewSprite(assets.CutImage, 48, 16)
+		// 	spr.AddAnimation("default", []sprite.Frame{
+		// 		{N: 0, Time: 250},
+		// 		{N: 1, Time: 500},
+		// 		{N: 2, Time: 250},
+		// 	})
+		// 	cutEnt, err := pools.SpritePool.AddNewEntity(components.Sprite{Sprite: spr})
+		// 	if err != nil {
+		// 		panic(err)
+		// 	}
+		// }
 	}
 
+	// #2# Проверка условий завершения анимации атаки
+
+	// Проверим есть ли юниты атакующие в данный момент
+	units = ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag, pools.TweenPool, pools.AttackPool}, []ecs.AnyPool{})
+
+	if len(units) > 1 { // Если взято в цель больше одного юнита -> всё плохо
+		panic("More than one targeted units")
+	} else if len(units) == 1 { // Нормальное состояние
+		unit := units[0]
+
+		t, err := pools.TweenPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		// Если закончилась анимация атаки, то анимацию нужно убрать и пометить юнит, которому нанесли урон
+		if t.Animation.IsEnded() {
+			attack, err := pools.AttackPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			attackerSprite, err := pools.SpritePool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			attackerClass, err := pools.ClassPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			attackerEnergy, err := pools.EnergyPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			attackerDir, err := pools.DirectionPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			attackerEnergy.Energy -= singletons.ClassStats[attackerClass.Class].AttackCost
+			damageMult := 1
+
+			if attackerClass.Class == classes.Knife {
+				targetDir, err := pools.DirectionPool.Component(*attack.Target)
+				if err != nil {
+					panic(err)
+				}
+				if attackerDir.Direction == targetDir.Direction {
+					damageMult = 2
+				}
+			}
+
+			if attackerClass.Class == classes.Glaive {
+				attackerPos, err := pools.PositionPool.Component(unit)
+				if err != nil {
+					panic(err)
+				}
+
+				offestX := 0
+				offestY := 0
+
+				switch attackerDir.Direction {
+				case directions.Down:
+					offestY = 2
+				case directions.Up:
+					offestY = -2
+				case directions.Right:
+					offestX = 2
+				case directions.Left:
+					offestX = -2
+				}
+
+				for _, tile := range pools.TileFlag.Entities() {
+					tilePos, err := pools.PositionPool.Component(tile)
+					if err != nil {
+						panic(err)
+					}
+
+					occupied, err := pools.OccupiedPool.Component(tile)
+					if err != nil {
+						panic(err)
+					}
+					if offestY == 0 && occupied.UnitObject != nil && tilePos.Y == attackerPos.Y && tilePos.X >= attackerPos.X-1 && tilePos.X <= attackerPos.X+1 ||
+						offestX == 0 && occupied.UnitObject != nil && tilePos.X == attackerPos.X && tilePos.Y >= attackerPos.Y-1 && tilePos.Y <= attackerPos.Y+1 {
+
+						pools.HitPool.AddExistingEntity(*occupied.UnitObject, components.Hit{Damage: singletons.ClassStats[attackerClass.Class].Attack})
+					}
+				}
+			}
+
+			pools.HitPool.AddExistingEntity(*attack.Target, components.Hit{Damage: singletons.ClassStats[attackerClass.Class].Attack * uint8(damageMult)})
+
+			pools.TweenPool.RemoveEntity(unit)
+			pools.AttackPool.RemoveEntity(unit)
+
+			switch attackerDir.Direction {
+			case directions.Down:
+				attackerSprite.Sprite.SetAnimation("idle-down")
+			case directions.Up:
+				attackerSprite.Sprite.SetAnimation("idle-up")
+			case directions.Right:
+				attackerSprite.Sprite.SetAnimation("idle-right")
+			case directions.Left:
+				attackerSprite.Sprite.SetAnimation("idle-left")
+			}
+
+			if singletons.Turn.State == turnstate.Action {
+				singletons.Turn.State = turnstate.Input
+			}
+		}
+	}
 }
 
 type EnergySystem struct{}

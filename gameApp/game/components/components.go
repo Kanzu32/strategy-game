@@ -69,6 +69,14 @@ type Direction struct {
 	Direction directions.Direction
 }
 
+type Attack struct {
+	Target *ecs.Entity
+}
+
+type Hit struct {
+	Damage uint8
+}
+
 // type StandOn struct {
 // 	Tile *ecs.Entity
 // }
