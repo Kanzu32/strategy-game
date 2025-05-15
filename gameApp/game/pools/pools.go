@@ -19,7 +19,7 @@ var TweenPool *ecs.ComponentPool[c.Tween]
 var MovePool *ecs.ComponentPool[c.MoveDirection]
 var DirectionPool *ecs.ComponentPool[c.Direction]
 var AttackPool *ecs.ComponentPool[c.Attack]
-var HitPool *ecs.ComponentPool[c.Hit]
+var DamagePool *ecs.ComponentPool[c.Damage]
 
 // var StandOnPool *ecs.ComponentPool[c.StandOn]
 
@@ -31,3 +31,4 @@ var GhostFlag *ecs.FlagPool
 var ActiveFlag *ecs.FlagPool
 var TargetUnitFlag *ecs.FlagPool
 var TargetObjectFlag *ecs.FlagPool
+var DeadFlag *ecs.FlagPool

@@ -6,8 +6,9 @@ import (
 )
 
 type Turn struct {
-	CurrentTurn teams.Team
-	PlayerTeam  teams.Team
-	State       turnstate.TurnState
-	IsTurnEnds  bool
+	CurrentTurn     teams.Team
+	PlayerTeam      teams.Team
+	State           turnstate.TurnState
+	IsTurnEnds      bool
+	IsAttackAllowed bool
 }

@@ -2,8 +2,6 @@ package assets
 
 import (
 	_ "embed"
-
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
 //go:embed ui/font/monogram-extended.ttf
@@ -39,6 +37,3 @@ var MinusIcon = "assets/ui/minus.png"
 var PlusIcon = "assets/ui/plus.png"
 var SkipIcon = "assets/ui/skip.png"
 var SkipDisabledIcon = "assets/ui/skip-disabled.png"
-
-var CutPath = "assets/img/cut.png"
-var CutImage *ebiten.Image

@@ -2,6 +2,7 @@ package components
 
 import (
 	"strategy-game/util/data/classes"
+	"strategy-game/util/data/damagetype"
 	"strategy-game/util/data/directions"
 	"strategy-game/util/data/material"
 	"strategy-game/util/data/side"
@@ -73,8 +74,9 @@ type Attack struct {
 	Target *ecs.Entity
 }
 
-type Hit struct {
-	Damage uint8
+type Damage struct {
+	Value uint8
+	Type  damagetype.DamageType
 }
 
 // type StandOn struct {

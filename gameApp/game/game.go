@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"strategy-game/assets"
@@ -43,7 +44,7 @@ func InitPools(w *ecs.World) {
 	pools.MovePool = ecs.CreateComponentPool[c.MoveDirection](w, psize.Page128)
 	pools.DirectionPool = ecs.CreateComponentPool[c.Direction](w, psize.Page64)
 	pools.AttackPool = ecs.CreateComponentPool[c.Attack](w, psize.Page32)
-	pools.HitPool = ecs.CreateComponentPool[c.Hit](w, psize.Page16)
+	pools.DamagePool = ecs.CreateComponentPool[c.Damage](w, psize.Page16)
 	// pools.StandOnPool = ecs.CreateComponentPool[c.StandOn](w, psize.Page64)
 
 	pools.TileFlag = ecs.CreateFlagPool(w, psize.Page1024)
@@ -54,6 +55,7 @@ func InitPools(w *ecs.World) {
 	pools.ActiveFlag = ecs.CreateFlagPool(w, psize.Page64)
 	pools.TargetUnitFlag = ecs.CreateFlagPool(w, psize.Page8)
 	pools.TargetObjectFlag = ecs.CreateFlagPool(w, psize.Page128)
+	pools.DeadFlag = ecs.CreateFlagPool(w, psize.Page16)
 }
 
 // INIT SYSTEMS IN ORDER
@@ -72,20 +74,21 @@ func InitSystems(w *ecs.World) {
 	// ecs.AddSystem(w, &systems.UnitMoveSystem{})
 	ecs.AddSystem(w, &systems.MoveSystem{})
 	ecs.AddSystem(w, &systems.AttackSystem{})
+	ecs.AddSystem(w, &systems.DamageSystem{})
 	ecs.AddSystem(w, &systems.EnergySystem{})
 
 }
 
 func InitStartData() {
 	if singletons.AppState.GameMode == gamemode.Local {
-		singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: teams.Blue, State: turnstate.Input}
+		singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: teams.Blue, State: turnstate.Input, IsAttackAllowed: true}
 	} else {
 		team := <-network.TeamChan
 		println("TEAM:", team)
 		if team == teams.Blue {
-			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Input}
+			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Input, IsAttackAllowed: true}
 		} else {
-			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Wait}
+			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Wait, IsAttackAllowed: true}
 		}
 
 	}
@@ -137,96 +140,7 @@ func (g *Game) StartGame() {
 	InitTileEntities(tilesets, assets.Tilemap)
 	InitStartData()
 	InitSystems(g.world)
-
-	// img, _, err := ebitenutil.NewImageFromFile(assets.CutPath)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// assets.CutImage = img // загрузка картинки т.к. иначе её придётся создавать и удалять несколько раз за игру
 }
-
-// func (g *Game) handleInput() {
-// 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-
-// 		// ENT
-
-// 		if singletons.Turn.State != turnstate.Input {
-// 			return
-// 		}
-
-// 		// клик на активный (active) либо взятый в цель (target object) объект на экране
-// 		activeEntities := ecs.PoolFilter([]ecs.AnyPool{pools.PositionPool, pools.SpritePool}, []ecs.AnyPool{})
-// 		xPosGame, yPosGame := g.mousePosGameScale()
-// 		for _, entity := range activeEntities {
-// 			// неактивные объекты и объекты не взятые в цель игнорируются
-// 			if !pools.ActiveFlag.HasEntity(entity) && !pools.TargetObjectFlag.HasEntity(entity) {
-// 				continue
-// 			}
-
-// 			position, err := pools.PositionPool.Component(entity)
-// 			if err != nil {
-// 				panic(err)
-// 			}
-
-// 			sprite, err := pools.SpritePool.Component(entity)
-// 			if err != nil {
-// 				panic(err)
-// 			}
-
-// 			if position.X*16 < xPosGame && xPosGame < position.X*16+sprite.Sprite.Width() &&
-// 				position.Y*16 < yPosGame && yPosGame < position.Y*16+sprite.Sprite.Height() {
-
-// 				// объект, взятый в цель, явл. тайлом (выбрать объект в цель для действия)
-// 				if pools.TargetObjectFlag.HasEntity(entity) && pools.TileFlag.HasEntity(entity) {
-// 					singletons.Turn.State = turnstate.Action
-// 					println("muvin")
-// 					return
-// 				}
-
-// 				// активный объект не являющийся юнитом (выбрать объект в цель для действия)
-// 				if pools.ActiveFlag.HasEntity(entity) && !pools.UnitFlag.HasEntity(entity) {
-// 					for _, ent := range pools.TargetObjectFlag.Entities() {
-// 						pools.TargetObjectFlag.RemoveEntity(ent)
-// 					}
-// 					pools.TargetObjectFlag.AddExistingEntity(entity)
-// 					return
-// 				}
-
-// 				// компонент team есть у всех юнитов (проверка на юнит выше)
-// 				team, err := pools.TeamPool.Component(entity)
-// 				if err != nil {
-// 					panic(err)
-// 				}
-
-// 				// активный юнит игрока (выбрать его для управления)
-// 				if pools.ActiveFlag.HasEntity(entity) && team.Team == singletons.Turn.PlayerTeam {
-// 					for _, ent := range pools.TargetUnitFlag.Entities() {
-// 						pools.TargetUnitFlag.RemoveEntity(ent)
-// 					}
-// 					for _, ent := range pools.TargetObjectFlag.Entities() {
-// 						pools.TargetObjectFlag.RemoveEntity(ent)
-// 					}
-// 					pools.TargetUnitFlag.AddExistingEntity(entity)
-// 					return
-// 				}
-
-// 				// активный юнит оппонента (выбрать юнит в цель для действия)
-// 				if pools.ActiveFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
-// 					for _, ent := range pools.TargetObjectFlag.Entities() {
-// 						pools.TargetObjectFlag.RemoveEntity(ent)
-// 					}
-// 					pools.TargetObjectFlag.AddExistingEntity(entity)
-// 					return
-// 				}
-
-// 				if pools.TargetObjectFlag.HasEntity(entity) && team.Team != singletons.Turn.PlayerTeam {
-// 					// атака...
-// 					return
-// 				}
-// 			}
-// 		}
-// 	}
-// }
 
 // func (g *Game) mousePosGameScale() (int, int) {
 // 	x, y := ebiten.CursorPosition()
@@ -263,8 +177,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.world.Draw(screen)
 	}
 	g.ui.Draw(screen)
-	// msg := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
-	// ebitenutil.DebugPrint(screen, msg)
+	msg := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
+	ebitenutil.DebugPrint(screen, msg)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -419,6 +333,7 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 				spr.AddAnimation("idle-up", []sprite.Frame{
 					{N: 22, Time: 5000},
 				})
+
 				spr.AddAnimation("idle-left", []sprite.Frame{
 					{N: 33, Time: 5000},
 				})
@@ -443,22 +358,87 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 					{N: 35, Time: 100},
 				})
 
-				spr.AddAnimation("attack-down", []sprite.Frame{
-					{N: 0, Time: 750},
-					{N: 3, Time: 5000},
+				spr.AddAnimation("hit-down", []sprite.Frame{
+					{N: 7, Time: 250},
+					{N: 8, Time: 550},
+					{N: 9, Time: 5000},
 				})
-				spr.AddAnimation("attack-right", []sprite.Frame{
-					{N: 11, Time: 750},
-					{N: 14, Time: 5000},
+				spr.AddAnimation("hit-right", []sprite.Frame{
+					{N: 18, Time: 250},
+					{N: 19, Time: 550},
+					{N: 20, Time: 5000},
 				})
-				spr.AddAnimation("attack-up", []sprite.Frame{
-					{N: 22, Time: 750},
-					{N: 25, Time: 5000},
+				spr.AddAnimation("hit-up", []sprite.Frame{
+					{N: 29, Time: 250},
+					{N: 30, Time: 550},
+					{N: 31, Time: 5000},
 				})
-				spr.AddAnimation("attack-left", []sprite.Frame{
-					{N: 33, Time: 750},
-					{N: 36, Time: 5000},
+				spr.AddAnimation("hit-left", []sprite.Frame{
+					{N: 40, Time: 250},
+					{N: 41, Time: 550},
+					{N: 42, Time: 5000},
 				})
+
+				spr.AddAnimation("dead-down", []sprite.Frame{
+					{N: 10, Time: 5000},
+				})
+				spr.AddAnimation("dead-right", []sprite.Frame{
+					{N: 21, Time: 5000},
+				})
+				spr.AddAnimation("dead-up", []sprite.Frame{
+					{N: 32, Time: 5000},
+				})
+				spr.AddAnimation("dead-left", []sprite.Frame{
+					{N: 43, Time: 5000},
+				})
+
+				// атака идёт 1000мс не зависимо от анимации спрайта
+				if class == classes.Glaive {
+					spr.AddAnimation("attack-down", []sprite.Frame{
+						{N: 0, Time: 750},
+						// {N: 3, Time: 5000},
+						{N: 44, Time: 50},
+						{N: 45, Time: 150},
+						{N: 46, Time: 500},
+						// {N: 3, Time: 5000},
+					}) // 44 45 46
+					spr.AddAnimation("attack-right", []sprite.Frame{
+						{N: 11, Time: 750},
+						{N: 55, Time: 50},
+						{N: 56, Time: 150},
+						{N: 57, Time: 500},
+					}) // 55 56 57
+					spr.AddAnimation("attack-up", []sprite.Frame{
+						{N: 22, Time: 750},
+						{N: 66, Time: 50},
+						{N: 67, Time: 150},
+						{N: 68, Time: 500},
+					}) // 66 67 68
+					spr.AddAnimation("attack-left", []sprite.Frame{
+						{N: 33, Time: 750},
+						{N: 77, Time: 50},
+						{N: 78, Time: 150},
+						{N: 79, Time: 500},
+					}) // 77 78 79
+				} else {
+					spr.AddAnimation("attack-down", []sprite.Frame{
+						{N: 0, Time: 750},
+						{N: 3, Time: 5000},
+					})
+					spr.AddAnimation("attack-right", []sprite.Frame{
+						{N: 11, Time: 750},
+						{N: 14, Time: 5000},
+					})
+					spr.AddAnimation("attack-up", []sprite.Frame{
+						{N: 22, Time: 750},
+						{N: 25, Time: 5000},
+					})
+					spr.AddAnimation("attack-left", []sprite.Frame{
+						{N: 33, Time: 750},
+						{N: 36, Time: 5000},
+					})
+				}
+
 				spr.SetAnimation("idle-down")
 
 				spriteComp := c.Sprite{Sprite: spr}

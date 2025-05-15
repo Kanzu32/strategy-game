@@ -6,4 +6,5 @@ type TweenType uint8
 const (
 	Linear TweenType = iota + 1
 	Back75Forward25
+	XSin
 )

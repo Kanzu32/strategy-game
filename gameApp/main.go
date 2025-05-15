@@ -15,6 +15,8 @@ import (
 // TODO ...
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
 	ebiten.SetWindowSize(640, 480)
 	ebiten.SetWindowTitle("Смутьяны!")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)

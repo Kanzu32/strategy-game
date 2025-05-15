@@ -1,6 +1,9 @@
 package tween
 
-import "strategy-game/util/data/tween/tweentype"
+import (
+	"math"
+	"strategy-game/util/data/tween/tweentype"
+)
 
 type TransitionValues struct {
 	X     float64
@@ -57,6 +60,12 @@ func (t *TweenAnimation) GetValue() TransitionValues { // получить те�
 				Y:     t.DeltaValues.Y * (-(t.FrameTime * 0.75) + t.CurrentFrameTime*1.5),
 				Angle: t.DeltaValues.Angle * (-(t.FrameTime * 0.75) + t.CurrentFrameTime*1.5),
 			}
+		}
+	case tweentype.XSin:
+		return TransitionValues{
+			X:     math.Sin(t.CurrentFrameTime * math.Pi / 7),
+			Y:     0,
+			Angle: 0,
 		}
 	}
 

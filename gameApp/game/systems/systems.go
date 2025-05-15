@@ -7,6 +7,7 @@ import (
 	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
 	"strategy-game/util/data/classes"
+	"strategy-game/util/data/damagetype"
 	"strategy-game/util/data/directions"
 	"strategy-game/util/data/gamemode"
 	"strategy-game/util/data/teams"
@@ -118,11 +119,13 @@ func (s *MarkActiveTilesSystem) Run() {
 				unitEnergy.Energy >= singletons.ClassStats[class.Class].MoveCost {
 
 				pools.ActiveFlag.AddExistingEntity(tile)
-			} else if distance >= singletons.ClassStats[class.Class].AttackDistanceStart && // проверка на атаку TODO было бы неплохо проверить в какую команду бьём
+			} else if singletons.Turn.IsAttackAllowed &&
+				distance >= singletons.ClassStats[class.Class].AttackDistanceStart && // проверка на атаку
 				distance <= singletons.ClassStats[class.Class].AttackDistanceEnd &&
 				!pools.ActiveFlag.HasEntity(tile) &&
 				!pools.WallFlag.HasEntity(tile) &&
 				occupied.UnitObject != nil &&
+				!pools.DeadFlag.HasEntity(*occupied.UnitObject) &&
 				(occupied.ActiveObject == nil || pools.SoftFlag.HasEntity(*occupied.ActiveObject)) &&
 				unitEnergy.Energy >= singletons.ClassStats[class.Class].AttackCost {
 
@@ -365,13 +368,13 @@ func (s *MoveSystem) Run() {
 type AttackSystem struct{}
 
 func (s *AttackSystem) Run() {
-	// Если пользователь не смотрит анимацию (не Action или Wait)
+	// Если пользователь смотрит анимацию (Action или Wait)
 	if singletons.Turn.State == turnstate.Input {
 		return
 	}
 
 	// если есть юнит взятый в цель, который не атакует...
-	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{pools.TweenPool, pools.AttackPool}) // TODO - AttackPool для анимации
+	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{pools.TweenPool, pools.AttackPool})
 
 	// ... и тайл взятый в цель
 	tiles := ecs.PoolFilter([]ecs.AnyPool{pools.TileFlag, pools.TargetObjectFlag}, []ecs.AnyPool{})
@@ -459,20 +462,6 @@ func (s *AttackSystem) Run() {
 		}
 
 		return
-		// TODO анимация резки на глефе
-
-		// if attackerClass.Class == classes.Glaive {
-		// 	spr := sprite.NewSprite(assets.CutImage, 48, 16)
-		// 	spr.AddAnimation("default", []sprite.Frame{
-		// 		{N: 0, Time: 250},
-		// 		{N: 1, Time: 500},
-		// 		{N: 2, Time: 250},
-		// 	})
-		// 	cutEnt, err := pools.SpritePool.AddNewEntity(components.Sprite{Sprite: spr})
-		// 	if err != nil {
-		// 		panic(err)
-		// 	}
-		// }
 	}
 
 	// #2# Проверка условий завершения анимации атаки
@@ -490,7 +479,7 @@ func (s *AttackSystem) Run() {
 			panic(err)
 		}
 
-		// Если закончилась анимация атаки, то анимацию нужно убрать и пометить юнит, которому нанесли урон
+		// Если закончилась анимация атаки, то анимацию нужно сменить и пометить юнит, которому нанесли урон
 		if t.Animation.IsEnded() {
 			attack, err := pools.AttackPool.Component(unit)
 			if err != nil {
@@ -520,6 +509,7 @@ func (s *AttackSystem) Run() {
 			attackerEnergy.Energy -= singletons.ClassStats[attackerClass.Class].AttackCost
 			damageMult := 1
 
+			// ножь в спину дамажит больше
 			if attackerClass.Class == classes.Knife {
 				targetDir, err := pools.DirectionPool.Component(*attack.Target)
 				if err != nil {
@@ -530,6 +520,7 @@ func (s *AttackSystem) Run() {
 				}
 			}
 
+			// глефа бъёт по площади
 			if attackerClass.Class == classes.Glaive {
 				attackerPos, err := pools.PositionPool.Component(unit)
 				if err != nil {
@@ -560,18 +551,20 @@ func (s *AttackSystem) Run() {
 					if err != nil {
 						panic(err)
 					}
-					if offestY == 0 && occupied.UnitObject != nil && tilePos.Y == attackerPos.Y && tilePos.X >= attackerPos.X-1 && tilePos.X <= attackerPos.X+1 ||
-						offestX == 0 && occupied.UnitObject != nil && tilePos.X == attackerPos.X && tilePos.Y >= attackerPos.Y-1 && tilePos.Y <= attackerPos.Y+1 {
+					if occupied.UnitObject != nil && !pools.DeadFlag.HasEntity(*occupied.UnitObject) &&
+						(offestY == 0 && tilePos.Y >= attackerPos.Y-1 && tilePos.Y <= attackerPos.Y+1 && tilePos.X == attackerPos.X+offestX ||
+							offestX == 0 && tilePos.X >= attackerPos.X-1 && tilePos.X <= attackerPos.X+1 && tilePos.Y == attackerPos.Y+offestY) {
 
-						pools.HitPool.AddExistingEntity(*occupied.UnitObject, components.Hit{Damage: singletons.ClassStats[attackerClass.Class].Attack})
+						pools.DamagePool.AddExistingEntity(*occupied.UnitObject, components.Damage{Value: singletons.ClassStats[attackerClass.Class].Attack, Type: damagetype.Hit})
 					}
 				}
+			} else {
+				pools.DamagePool.AddExistingEntity(*attack.Target, components.Damage{Value: singletons.ClassStats[attackerClass.Class].Attack * uint8(damageMult), Type: damagetype.Hit})
 			}
-
-			pools.HitPool.AddExistingEntity(*attack.Target, components.Hit{Damage: singletons.ClassStats[attackerClass.Class].Attack * uint8(damageMult)})
 
 			pools.TweenPool.RemoveEntity(unit)
 			pools.AttackPool.RemoveEntity(unit)
+			singletons.Turn.IsAttackAllowed = false
 
 			switch attackerDir.Direction {
 			case directions.Down:
@@ -584,18 +577,144 @@ func (s *AttackSystem) Run() {
 				attackerSprite.Sprite.SetAnimation("idle-left")
 			}
 
+			// TODO ОТКЛЮЧИТЬ
+			// if singletons.Turn.State == turnstate.Action {
+			// 	singletons.Turn.State = turnstate.Input
+			// }
+		}
+	}
+}
+
+type DamageSystem struct{}
+
+func (s *DamageSystem) Run() {
+	// Если пользователь смотрит анимацию (Action или Wait)
+	if singletons.Turn.State == turnstate.Input {
+		return
+	}
+
+	// #1# если есть юнит получивший урон и не анимируемый в данный момент
+	units := ecs.PoolFilter([]ecs.AnyPool{pools.DamagePool}, []ecs.AnyPool{pools.TweenPool})
+
+	for _, unit := range units {
+		damage, err := pools.DamagePool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		health, err := pools.HealthPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		switch damage.Type {
+		case damagetype.Hit:
+			println("START DAMAGE")
+			spr, err := pools.SpritePool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			dir, err := pools.DirectionPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.XSin, 800, 0, 0, 0)})
+
+			switch dir.Direction {
+			case directions.Down:
+				spr.Sprite.SetAnimation("hit-down")
+			case directions.Right:
+				spr.Sprite.SetAnimation("hit-right")
+			case directions.Left:
+				spr.Sprite.SetAnimation("hit-left")
+			case directions.Up:
+				spr.Sprite.SetAnimation("hit-up")
+			}
+
+			if health.Health < damage.Value {
+				health.Health = 0
+			} else {
+				health.Health -= damage.Value
+			}
+
+		default:
+			panic("UNEXPECTED DAMAGE TYPE")
+		}
+	}
+
+	// #2# если есть юнит получивший урон и анимируемый в данный момент
+	units = ecs.PoolFilter([]ecs.AnyPool{pools.DamagePool, pools.TweenPool}, []ecs.AnyPool{})
+
+	for _, unit := range units {
+		tween, err := pools.TweenPool.Component(unit)
+		if err != nil {
+			panic(err)
+		}
+
+		if tween.Animation.IsEnded() {
+			println("STOP DAMAGE")
+			spr, err := pools.SpritePool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			dir, err := pools.DirectionPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			health, err := pools.HealthPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+
+			if health.Health > 0 {
+				switch dir.Direction {
+				case directions.Down:
+					spr.Sprite.SetAnimation("idle-down")
+				case directions.Left:
+					spr.Sprite.SetAnimation("idle-left")
+				case directions.Right:
+					spr.Sprite.SetAnimation("idle-right")
+				case directions.Up:
+					spr.Sprite.SetAnimation("idle-up")
+				}
+			} else {
+				switch dir.Direction {
+				case directions.Down:
+					spr.Sprite.SetAnimation("dead-down")
+				case directions.Left:
+					spr.Sprite.SetAnimation("dead-left")
+				case directions.Right:
+					spr.Sprite.SetAnimation("dead-right")
+				case directions.Up:
+					spr.Sprite.SetAnimation("dead-up")
+				}
+
+				pools.DeadFlag.AddExistingEntity(unit)
+			}
+
+			pools.TweenPool.RemoveEntity(unit)
+			pools.DamagePool.RemoveEntity(unit)
+
 			if singletons.Turn.State == turnstate.Action {
 				singletons.Turn.State = turnstate.Input
 			}
 		}
+
 	}
+
 }
 
 type EnergySystem struct{}
 
 func (s *EnergySystem) Run() {
 	// TODO if any need
-
+	if singletons.Turn.State != turnstate.Input {
+		return
+	}
 	// Проверим не закончилась ли энергия у юнита в таргете
 	units := ecs.PoolFilter([]ecs.AnyPool{pools.TargetUnitFlag}, []ecs.AnyPool{})
 	if len(units) > 1 { // если их больше чем 1 всё плохо
@@ -667,6 +786,7 @@ func (s *EnergySystem) Run() {
 			}
 		}
 		singletons.Turn.IsTurnEnds = false
+		singletons.Turn.IsAttackAllowed = true
 		println("WEARE ACTUALY ENDING")
 	}
 }
@@ -833,9 +953,13 @@ func (s *DrawGhostsSystem) Run(screen *ebiten.Image) {
 type DrawStatsSystem struct{}
 
 func (s *DrawStatsSystem) Run(screen *ebiten.Image) {
-	// Текст необходимо рисовать сращу на screen избегая view т.к. масштабировать текст плохо
+	// Текст необходимо рисовать сразу на screen избегая view т.к. масштабировать текст плохо
 	// view := singletons.View.Image
 	for _, unitEntity := range pools.UnitFlag.Entities() {
+		if pools.TweenPool.HasEntity(unitEntity) || pools.DeadFlag.HasEntity(unitEntity) {
+			continue
+		}
+
 		position, err := pools.PositionPool.Component(unitEntity)
 		if err != nil {
 			panic(err)
