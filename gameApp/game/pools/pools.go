@@ -3,6 +3,8 @@ package pools
 import (
 	c "strategy-game/game/components"
 	"strategy-game/util/ecs"
+
+	"github.com/mitchellh/hashstructure/v2"
 )
 
 var PositionPool *ecs.ComponentPool[c.Position]
@@ -32,3 +34,15 @@ var ActiveFlag *ecs.FlagPool
 var TargetUnitFlag *ecs.FlagPool
 var TargetObjectFlag *ecs.FlagPool
 var DeadFlag *ecs.FlagPool
+
+func CalcHash() uint64 {
+	str := TileFlag.String() + WallFlag.String() + SoftFlag.String() + UnitFlag.String() + GhostFlag.String() + DeadFlag.String() +
+		PositionPool.String() + SidePool.String() + OccupiedPool.String() + TeamPool.String() + ClassPool.String() + EnergyPool.String() + HealthPool.String() +
+		MovePool.String() + DirectionPool.String() + AttackPool.String() + DamagePool.String()
+
+	hash, err := hashstructure.Hash(str, hashstructure.FormatV2, &hashstructure.HashOptions{})
+	if err != nil {
+		println(err)
+	}
+	return hash
+}

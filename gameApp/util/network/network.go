@@ -205,3 +205,7 @@ func StatisticsRequest(email string, password string) {
 
 	// do stuff
 }
+
+func SendPools() {
+	println(pools.CalcHash())
+}

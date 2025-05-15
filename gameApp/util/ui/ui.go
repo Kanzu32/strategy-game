@@ -181,6 +181,10 @@ func handleGameInput() {
 		println(singletons.View.ShiftX, singletons.View.ShiftY)
 	}
 
+	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) {
+		network.SendPools()
+	}
+
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) && !isDragging {
 
 		// ENT

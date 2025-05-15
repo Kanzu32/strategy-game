@@ -18,6 +18,7 @@ type AnyPool interface {
 	Entities() []Entity
 	EntityCount() int
 	RemoveEntity(entity Entity) error
+	String() string
 }
 
 type Entity struct {
@@ -350,4 +351,8 @@ func (pool *FlagPool) Entities() []Entity {
 
 func (pool *FlagPool) EntityCount() int {
 	return len(pool.denseEntities)
+}
+
+func (pool *FlagPool) String() string {
+	return fmt.Sprintf("Dense ent: %v\nSparse ent:\n%v", pool.denseEntities, pool.sparseEntities.String())
 }
