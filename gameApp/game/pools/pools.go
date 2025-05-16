@@ -1,10 +1,9 @@
 package pools
 
 import (
+	"crypto/sha256"
 	c "strategy-game/game/components"
 	"strategy-game/util/ecs"
-
-	"github.com/mitchellh/hashstructure/v2"
 )
 
 var PositionPool *ecs.ComponentPool[c.Position]
@@ -35,14 +34,9 @@ var TargetUnitFlag *ecs.FlagPool
 var TargetObjectFlag *ecs.FlagPool
 var DeadFlag *ecs.FlagPool
 
-func CalcHash() uint64 {
-	str := TileFlag.String() + WallFlag.String() + SoftFlag.String() + UnitFlag.String() + GhostFlag.String() + DeadFlag.String() +
-		PositionPool.String() + SidePool.String() + OccupiedPool.String() + TeamPool.String() + ClassPool.String() + EnergyPool.String() + HealthPool.String() +
-		MovePool.String() + DirectionPool.String() + AttackPool.String() + DamagePool.String()
+func CalcHash() [32]byte {
+	data := TileFlag.String() + WallFlag.String() + SoftFlag.String() + UnitFlag.String() + DeadFlag.String() + PositionPool.String() + SidePool.String() +
+		OccupiedPool.String() + TeamPool.String() + ClassPool.String() + EnergyPool.String() + HealthPool.String() + DirectionPool.String()
 
-	hash, err := hashstructure.Hash(str, hashstructure.FormatV2, &hashstructure.HashOptions{})
-	if err != nil {
-		println(err)
-	}
-	return hash
+	return sha256.Sum256([]byte(data))
 }

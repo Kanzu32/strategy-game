@@ -3,6 +3,7 @@ package network
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"strategy-game/game/pools"
@@ -89,7 +90,9 @@ func gameResponse() {
 			} else {
 				print("wrong team")
 			}
+			SendChecksum()
 		case "GAMEDATA":
+			SendChecksum()
 			var data GameData
 			err := json.Unmarshal([]byte(packet.Data), &data)
 			if err != nil {
@@ -103,6 +106,7 @@ func gameResponse() {
 			pools.TargetObjectFlag.AddExistingEntity(data.TileID)
 			println("ACTIVE: ", data.UnitID.Id, data.TileID.Id)
 		case "SKIP":
+			SendChecksum()
 			singletons.Turn.IsTurnEnds = true
 			println("SKIP")
 		default:
@@ -114,6 +118,7 @@ func gameResponse() {
 
 func SendGameData(unitID ecs.Entity, tileID ecs.Entity) {
 	println("start send data")
+	SendChecksum()
 
 	b, err := json.Marshal(GameData{UnitID: unitID, TileID: tileID})
 	if err != nil {
@@ -134,7 +139,7 @@ func SendGameData(unitID ecs.Entity, tileID ecs.Entity) {
 
 func SendSkip() {
 	println("start send skip")
-
+	SendChecksum()
 	b, err := json.Marshal(Packet{Type: "SKIP", Data: ""})
 	if err != nil {
 		panic(err)
@@ -145,6 +150,20 @@ func SendSkip() {
 		panic(err)
 	}
 	// s.conn.Read(b) // response
+}
+
+func SendChecksum() {
+	fmt.Printf("%x\n", pools.CalcHash())
+
+	b, err := json.Marshal(Packet{Type: "CHECKSUM", Data: fmt.Sprintf("%x", pools.CalcHash())})
+	if err != nil {
+		panic(err)
+	}
+	print("Send checksum: ", string(b))
+	n, err := conn.Write(b)
+	if n == 0 || err != nil {
+		panic(err)
+	}
 }
 
 func LoginRequest(email string, password string) int {
@@ -204,8 +223,4 @@ func StatisticsRequest(email string, password string) {
 	println(resp)
 
 	// do stuff
-}
-
-func SendPools() {
-	println(pools.CalcHash())
 }

@@ -33,6 +33,7 @@ func (s *TurnSystem) Run() { // highlight active units
 	if singletons.Turn.State == turnstate.Action {
 		for _, ent := range pools.ActiveFlag.Entities() {
 			pools.ActiveFlag.RemoveEntity(ent)
+			println("FUCK 1")
 		}
 	}
 }
@@ -45,7 +46,7 @@ func (s *MarkActiveUnitsSystem) Run() { // highlight active units
 	}
 
 	if singletons.Turn.CurrentTurn == singletons.Turn.PlayerTeam {
-		entities := ecs.PoolFilter([]ecs.AnyPool{pools.TeamPool, pools.EnergyPool}, []ecs.AnyPool{pools.ActiveFlag}) // all inactive units
+		entities := ecs.PoolFilter([]ecs.AnyPool{pools.TeamPool, pools.EnergyPool}, []ecs.AnyPool{pools.ActiveFlag, pools.DeadFlag}) // all inactive units
 		for _, entity := range entities {
 			energyComp, err := pools.EnergyPool.Component(entity)
 			if err != nil {
@@ -99,6 +100,11 @@ func (s *MarkActiveTilesSystem) Run() {
 		}
 
 		for _, tile := range tiles {
+
+			if pools.ActiveFlag.HasEntity(tile) {
+				pools.ActiveFlag.RemoveEntity(tile)
+			}
+
 			tilePostion, err := pools.PositionPool.Component(tile)
 			if err != nil {
 				panic(err)
@@ -112,7 +118,6 @@ func (s *MarkActiveTilesSystem) Run() {
 			distance := positionsDistance(unitPosition, tilePostion)
 
 			if distance == 1 && // Проверка на передвижение
-				!pools.ActiveFlag.HasEntity(tile) &&
 				!pools.WallFlag.HasEntity(tile) &&
 				occupied.UnitObject == nil &&
 				(occupied.ActiveObject == nil || pools.SoftFlag.HasEntity(*occupied.ActiveObject)) &&
@@ -122,21 +127,68 @@ func (s *MarkActiveTilesSystem) Run() {
 			} else if singletons.Turn.IsAttackAllowed &&
 				distance >= singletons.ClassStats[class.Class].AttackDistanceStart && // проверка на атаку
 				distance <= singletons.ClassStats[class.Class].AttackDistanceEnd &&
-				!pools.ActiveFlag.HasEntity(tile) &&
 				!pools.WallFlag.HasEntity(tile) &&
 				occupied.UnitObject != nil &&
 				!pools.DeadFlag.HasEntity(*occupied.UnitObject) &&
 				(occupied.ActiveObject == nil || pools.SoftFlag.HasEntity(*occupied.ActiveObject)) &&
 				unitEnergy.Energy >= singletons.ClassStats[class.Class].AttackCost {
 
-				print("YOU CAN FIGHT")
-				pools.ActiveFlag.AddExistingEntity(tile)
-			} else if (distance != 1 &&
-				(distance < singletons.ClassStats[class.Class].AttackDistanceStart || distance > singletons.ClassStats[class.Class].AttackDistanceEnd)) &&
-				pools.ActiveFlag.HasEntity(tile) {
-
-				pools.ActiveFlag.RemoveEntity(tile)
+				// Проверка на то, что в цель взят не союзник
+				team, err := pools.TeamPool.Component(*occupied.UnitObject)
+				if err != nil {
+					panic(err)
+				}
+				if team.Team != singletons.Turn.PlayerTeam {
+					pools.ActiveFlag.AddExistingEntity(tile)
+				}
 			}
+			// if distance == 1 && // Проверка на передвижение
+			// 	!pools.ActiveFlag.HasEntity(tile) &&
+			// 	!pools.WallFlag.HasEntity(tile) &&
+			// 	occupied.UnitObject == nil &&
+			// 	(occupied.ActiveObject == nil || pools.SoftFlag.HasEntity(*occupied.ActiveObject)) &&
+			// 	unitEnergy.Energy >= singletons.ClassStats[class.Class].MoveCost {
+
+			// 	pools.ActiveFlag.AddExistingEntity(tile)
+			// } else if singletons.Turn.IsAttackAllowed &&
+			// 	distance >= singletons.ClassStats[class.Class].AttackDistanceStart && // проверка на атаку
+			// 	distance <= singletons.ClassStats[class.Class].AttackDistanceEnd &&
+			// 	!pools.ActiveFlag.HasEntity(tile) &&
+			// 	!pools.WallFlag.HasEntity(tile) &&
+			// 	occupied.UnitObject != nil &&
+			// 	!pools.DeadFlag.HasEntity(*occupied.UnitObject) &&
+			// 	(occupied.ActiveObject == nil || pools.SoftFlag.HasEntity(*occupied.ActiveObject)) &&
+			// 	unitEnergy.Energy >= singletons.ClassStats[class.Class].AttackCost {
+
+			// 	// Проверка на то, что в цель взят не союзник
+			// 	team, err := pools.TeamPool.Component(*occupied.UnitObject)
+			// 	if err != nil {
+			// 		panic(err)
+			// 	}
+			// 	if team.Team != singletons.Turn.PlayerTeam {
+			// 		pools.ActiveFlag.AddExistingEntity(tile)
+			// 	}
+			// } else if class.Class != classes.Glaive && distance != 1 && pools.ActiveFlag.HasEntity(tile) {
+
+			// 	pools.ActiveFlag.RemoveEntity(tile)
+			// 	println("FUCK 2")
+
+			// } else if class.Class == classes.Glaive && (distance != 1 ||
+			// 	distance >= singletons.ClassStats[class.Class].AttackDistanceStart &&
+			// 		distance <= singletons.ClassStats[class.Class].AttackDistanceEnd &&
+			// 		occupied.UnitObject == nil) &&
+			// 		pools.ActiveFlag.HasEntity(tile) {
+
+			// 	pools.ActiveFlag.RemoveEntity(tile)
+			// 	println("FUCK 3")
+			// }
+
+			//  else if distance != 1 &&
+			// 	(distance < singletons.ClassStats[class.Class].AttackDistanceStart || distance > singletons.ClassStats[class.Class].AttackDistanceEnd) &&
+			// 	pools.ActiveFlag.HasEntity(tile) {
+
+			// 	pools.ActiveFlag.RemoveEntity(tile)
+			// }
 			// else if positionsDistance(unitPosition, tilePostion) != 1 && pools.ActiveFlag.HasEntity(tile) {
 			// 	pools.ActiveFlag.RemoveEntity(tile)
 			// }
@@ -589,9 +641,9 @@ type DamageSystem struct{}
 
 func (s *DamageSystem) Run() {
 	// Если пользователь смотрит анимацию (Action или Wait)
-	if singletons.Turn.State == turnstate.Input {
-		return
-	}
+	// if singletons.Turn.State == turnstate.Input {
+	// 	return
+	// }
 
 	// #1# если есть юнит получивший урон и не анимируемый в данный момент
 	units := ecs.PoolFilter([]ecs.AnyPool{pools.DamagePool}, []ecs.AnyPool{pools.TweenPool})
@@ -712,7 +764,7 @@ type EnergySystem struct{}
 
 func (s *EnergySystem) Run() {
 	// TODO if any need
-	if singletons.Turn.State != turnstate.Input {
+	if singletons.Turn.State == turnstate.Action {
 		return
 	}
 	// Проверим не закончилась ли энергия у юнита в таргете

@@ -169,8 +169,14 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 	blueInputChan := make(chan GameData)
 	redInputChan := make(chan GameData)
 
-	go s.handleClientInput(connBlue, blueInputChan) // BLUE
-	go s.handleClientInput(connRed, redInputChan)   // RED
+	blueCheckSumChan := make(chan string)
+	blueLastCheckSum := ""
+
+	redCheckSumChan := make(chan string)
+	redLastCheckSum := ""
+
+	go s.handleClientInput(connBlue, blueInputChan, blueCheckSumChan) // BLUE
+	go s.handleClientInput(connRed, redInputChan, redCheckSumChan)    // RED
 
 	for {
 		select {
@@ -233,11 +239,41 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 				connBlue.Write(b)
 				log.Println("К -> C Пакет: ", gameData.UnitID.Id, gameData.TileID.Id)
 			}
+
+		case checksum, ok := <-blueCheckSumChan:
+			if ok == false {
+				log.Println("СИНЯЯ команда закрыла соединение, завершение сессии")
+				return
+			}
+
+			if redLastCheckSum != "" && redLastCheckSum == checksum {
+				redLastCheckSum = ""
+				// КОНТРОЛЬНЫЕ СУММЫ СОВПАЛИ
+			} else if redLastCheckSum != "" && redLastCheckSum != checksum {
+				log.Println("КОНТРОЛЬНЫЕ СУММЫ НЕ СОВПАЛИ!")
+			} else {
+				blueLastCheckSum = checksum
+			}
+		case checksum, ok := <-redCheckSumChan:
+			if ok == false {
+				log.Println("КРАСНАЯ команда закрыла соединение, завершение сессии")
+				return
+			}
+
+			if blueLastCheckSum != "" && blueLastCheckSum == checksum {
+				blueLastCheckSum = ""
+				// КОНТРОЛЬНЫЕ СУММЫ СОВПАЛИ
+				log.Println("Контрольные суммы совпали")
+			} else if blueLastCheckSum != "" && blueLastCheckSum != checksum {
+				log.Println("КОНТРОЛЬНЫЕ СУММЫ НЕ СОВПАЛИ!")
+			} else {
+				redLastCheckSum = checksum
+			}
 		}
 	}
 }
 
-func (s *Server) handleClientInput(conn net.Conn, inputChan chan<- GameData) {
+func (s *Server) handleClientInput(conn net.Conn, inputChan chan<- GameData, checksumChan chan<- string) {
 	var packet Packet
 	for {
 		println("ждём ввода")
@@ -267,6 +303,8 @@ func (s *Server) handleClientInput(conn net.Conn, inputChan chan<- GameData) {
 			var data GameData
 			data.Skip = true
 			inputChan <- data
+		} else if packet.Type == "CHECKSUM" {
+			checksumChan <- packet.Data
 		} else {
 			log.Println("Неизвестный тип пакета от пользователя")
 		}
