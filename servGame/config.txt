@@ -1,4 +1,6 @@
 PORT=8080
 MONGO_URI=mongodb://localhost:27017
 DB_NAME=game_server
-COLL_NAME=users
+COLL_USERS=users
+COLL_STATS=user_stats
+COLL_MAPS=maps

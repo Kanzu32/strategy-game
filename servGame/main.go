@@ -10,10 +10,12 @@ import (
 )
 
 type Config struct {
-	Port     string
-	MongoURI string
-	DbName   string
-	CollName string
+	Port      string
+	MongoURI  string
+	DbName    string
+	CollUsers string
+	CollStats string
+	CollMaps  string
 }
 
 func LoadConfig(filename string) (*Config, error) {
@@ -40,8 +42,12 @@ func LoadConfig(filename string) (*Config, error) {
 			config.MongoURI = value
 		case "DB_NAME":
 			config.DbName = value
-		case "COLL_NAME":
-			config.CollName = value
+		case "COLL_USERS":
+			config.CollUsers = value
+		case "COLL_STATS":
+			config.CollStats = value
+		case "COLL_MAPS":
+			config.CollMaps = value
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -59,7 +65,13 @@ func main() {
 	}
 
 	log.Println("Connecting to database...")
-	database := database.NewDatabase(config.MongoURI, config.DbName, config.CollName)
+	database := database.NewDatabase(
+		config.MongoURI,
+		config.DbName,
+		config.CollUsers,
+		config.CollStats,
+		config.CollMaps,
+	)
 
 	log.Println("Starting server...")
 	server := server.NewServer(database)

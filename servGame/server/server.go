@@ -47,6 +47,8 @@ func NewServer(database *database.Database) *Server {
 func (s *Server) Start(port string) {
 	http.HandleFunc("/api/register", s.handleRegister)
 	http.HandleFunc("/api/login", s.handleLogin)
+	http.HandleFunc("/api/map", s.handleGetMap)
+	http.HandleFunc("/api/stats", s.handleUpdateStats)
 	// http.HandleFunc("/api/game/create", s.handleCreateGame)
 	// http.HandleFunc("/api/game/endturn", s.handleEndTurn)
 	// http.HandleFunc("/api/game/state", s.handleGameState)
@@ -375,4 +377,47 @@ func respondWithError(w http.ResponseWriter, code int) {
 	log.Printf("Возвращаемый код ошибки: %d", code)
 	// respondWithJSON(w, map[string]string{"error": message})
 	w.WriteHeader(code)
+}
+
+type StatsRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Damage   int    `json:"damage"`
+	Cells    int    `json:"cells"`
+}
+
+func (s *Server) handleUpdateStats(w http.ResponseWriter, r *http.Request) {
+	var req StatsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	err := s.database.UpdateUserStats(req.Email, req.Password, req.Damage, req.Cells)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Stats updated"))
+}
+
+func (s *Server) handleGetMap(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID == "" {
+		http.Error(w, "session_id is required", http.StatusBadRequest)
+		return
+	}
+
+	gameMap, err := s.database.GetGameMap(sessionID)
+	if err != nil {
+		http.Error(w, "Map not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"map_data": gameMap.MapData,
+	})
 }

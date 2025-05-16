@@ -16,12 +16,25 @@ type Account struct {
 	Email    string `bson:"email"`
 }
 
-type Database struct {
-	client     *mongo.Client
-	collection *mongo.Collection
+type UserStats struct {
+	Email       string `bson:"email"`
+	TotalDamage int    `bson:"total_damage"`
+	TotalCells  int    `bson:"total_cells"`
 }
 
-func NewDatabase(uri, dbName, collectionName string) *Database {
+type GameMap struct {
+	SessionID string      `bson:"session_id"`
+	MapData   interface{} `bson:"map_data"`
+}
+
+type Database struct {
+	client   *mongo.Client
+	accounts *mongo.Collection
+	stats    *mongo.Collection
+	maps     *mongo.Collection
+}
+
+func NewDatabase(uri, dbName, usersColl, statsColl, mapsColl string) *Database {
 	log.Printf("Подключение к MongoDB по URI: %s", uri)
 	clientOptions := options.Client().ApplyURI(uri)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
@@ -34,16 +47,22 @@ func NewDatabase(uri, dbName, collectionName string) *Database {
 		log.Fatalf("Не удалось проверить подключение к MongoDB: %v", err)
 	}
 
-	log.Printf("Успешное подключение к БД %s, коллекция %s", dbName, collectionName)
-	collection := client.Database(dbName).Collection(collectionName)
-	return &Database{client: client, collection: collection}
+	log.Printf("Успешное подключение к БД %s", dbName)
+	db := client.Database(dbName)
+
+	return &Database{
+		client:   client,
+		accounts: db.Collection(usersColl),
+		stats:    db.Collection(statsColl),
+		maps:     db.Collection(mapsColl),
+	}
 }
 
 func (db *Database) Authenticate(email, password string) error {
 	// log.Printf("Аутентификация пользователя: %s", email)
 	filter := bson.M{"email": email}
 	var result Account
-	err := db.collection.FindOne(context.TODO(), filter).Decode(&result)
+	err := db.accounts.FindOne(context.TODO(), filter).Decode(&result)
 	if err != nil {
 		return errors.New(fmt.Sprintf("Ошибка поиска пользователя в базе данных: %v", err))
 	}
@@ -61,14 +80,14 @@ func (db *Database) Register(account *Account) error {
 	// log.Printf("Регистрация нового пользователя: %s", account.Email)
 	filter := bson.M{"email": account.Email}
 	var existing Account
-	err := db.collection.FindOne(context.TODO(), filter).Decode(&existing)
+	err := db.accounts.FindOne(context.TODO(), filter).Decode(&existing)
 	if err == nil {
 		// log.Printf("Пользователь %s уже существует в базе данных", account.Email)
 
 		return errors.New(fmt.Sprintf("Пользователь %s уже существует в базе данных", account.Email))
 	}
 
-	_, err = db.collection.InsertOne(context.TODO(), account)
+	_, err = db.accounts.InsertOne(context.TODO(), account)
 	if err != nil {
 		// log.Printf("Ошибка при добавлении пользователя в базу данных: %v", err)
 		return errors.New(fmt.Sprintf("Ошибка при добавлении пользователя в базу данных: %v", err))
@@ -76,4 +95,41 @@ func (db *Database) Register(account *Account) error {
 
 	// log.Printf("Пользователь %s успешно добавлен в базу данных", account.Email)
 	return nil
+}
+
+func (db *Database) UpdateUserStats(email, password string, damage, cells int) error {
+	var account Account
+	err := db.accounts.FindOne(context.TODO(), bson.M{
+		"email":    email,
+		"password": password,
+	}).Decode(&account)
+
+	if err != nil {
+		return fmt.Errorf("authentication failed: %v", err)
+	}
+
+	filter := bson.M{"email": email}
+	update := bson.M{
+		"$inc": bson.M{
+			"total_damage": damage,
+			"total_cells":  cells,
+		},
+	}
+	opts := options.Update().SetUpsert(true)
+
+	_, err = db.stats.UpdateOne(context.TODO(), filter, update, opts)
+	if err != nil {
+		return fmt.Errorf("failed to update stats: %v", err)
+	}
+
+	return nil
+}
+
+func (db *Database) GetGameMap(sessionID string) (*GameMap, error) {
+	var result GameMap
+	err := db.maps.FindOne(context.TODO(), bson.M{"session_id": sessionID}).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
