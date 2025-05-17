@@ -22,6 +22,7 @@ import (
 	"strategy-game/util/ecs"
 	"strategy-game/util/ecs/psize"
 	"strategy-game/util/network"
+	"strategy-game/util/sound"
 	"strategy-game/util/tile"
 	"strategy-game/util/ui"
 	"strategy-game/util/ui/uistate"
@@ -93,6 +94,7 @@ func InitStartData() {
 		}
 	}
 	singletons.View.Scale = singletons.Settings.DefaultGameScale
+
 }
 
 func NewGame() *Game {
@@ -108,6 +110,7 @@ func NewGame() *Game {
 
 	singletons.UserLogin.Status = userstatus.Offline
 
+	sound.Init()
 	g.ui.ShowMainMenu()
 	// g.ui.ShowLogin()
 	return g
@@ -174,6 +177,8 @@ func (g *Game) Update() error {
 		// g.handleInput()
 		g.world.Update()
 	}
+
+	sound.RestartMusicIfNeeds()
 
 	return nil
 }

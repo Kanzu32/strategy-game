@@ -16,6 +16,7 @@ import (
 	"strategy-game/util/data/tween/tweentype"
 	"strategy-game/util/ecs"
 	"strategy-game/util/network"
+	"strategy-game/util/sound"
 	"strategy-game/util/ui"
 	"strconv"
 
@@ -638,6 +639,9 @@ func (s *AttackSystem) Run() {
 				attackerSprite.Sprite.SetAnimation("idle-left")
 			}
 
+			// Звук удара
+			sound.PlayHit()
+
 			// TODO ОТКЛЮЧИТЬ
 			// if singletons.Turn.State == turnstate.Action {
 			// 	singletons.Turn.State = turnstate.Input
@@ -755,6 +759,8 @@ func (s *DamageSystem) Run() {
 				}
 
 				pools.DeadFlag.AddExistingEntity(unit)
+
+				sound.PlayKill()
 			}
 
 			pools.TweenPool.RemoveEntity(unit)

@@ -7,6 +7,18 @@ import (
 //go:embed ui/font/monogram-extended.ttf
 var MonogramTTF []byte
 
+//go:embed sound/hit.wav
+var HitSound []byte
+
+//go:embed sound/hit2.wav
+var Hit2Sound []byte
+
+//go:embed sound/kill.wav
+var KillSound []byte
+
+//go:embed sound/music/music1.wav
+var Music1 []byte
+
 var GroundTileset = "assets/tiles/tilesets/1_ground-tileset.json"
 var DecalsTileset = "assets/tiles/tilesets/2_decals-tileset.json"
 var ActiveObject = "assets/tiles/tilesets/3_active-objects-tileset.json"
