@@ -87,16 +87,16 @@ var View struct {
 	ShiftY int
 }
 
-var Settings struct {
-	DefaultGameScale int
-	UIScale          int
-	Sound            int
-}
-
 var UserLogin struct {
 	Email    string
 	Password string
 	Status   userstatus.UserStatus
+}
+
+var Settings struct {
+	DefaultGameScale int  `json:"DefaultGameScale"`
+	Sound            int  `json:"Sound"`
+	Fullscreen       bool `json:"Fullscreen"`
 }
 
 // var World *ecs.World

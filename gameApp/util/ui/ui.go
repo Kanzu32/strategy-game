@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"encoding/json"
 	"image/color"
 	_ "image/png"
+	"os"
 	"regexp"
 	"strategy-game/assets"
 	"strategy-game/game/pools"
@@ -12,6 +14,7 @@ import (
 	"strategy-game/util/data/userstatus"
 	"strategy-game/util/ecs"
 	"strategy-game/util/network"
+	"strconv"
 
 	"strategy-game/util/ui/uistate"
 
@@ -402,8 +405,8 @@ func (u *UI) ShowMainMenu() {
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("settings")
-			// singletons.UIState = uistate.Game
-			// singletons.GameMode = gamemode.Online
+			singletons.AppState.UIState = uistate.Settings
+			singletons.AppState.StateChanged = true
 		}),
 	))
 
@@ -414,8 +417,8 @@ func (u *UI) ShowMainMenu() {
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("statistics")
-			// singletons.UIState = uistate.Game
-			// singletons.GameMode = gamemode.Online
+			singletons.AppState.UIState = uistate.Statistics
+			singletons.AppState.StateChanged = true
 		}),
 	)
 
@@ -438,6 +441,13 @@ func (u *UI) ShowMainMenu() {
 		onlineButton.GetWidget().Disabled = true
 		statisticsButton.GetWidget().Disabled = true
 	}
+
+	if singletons.UserLogin.Status == userstatus.Online {
+		u.ui.Container.AddChild(widget.NewText(widget.TextOpts.Text("Вход произведён: "+singletons.UserLogin.Email, TextFace, color.RGBA{0, 255, 0, 0})))
+	} else {
+		u.ui.Container.AddChild(widget.NewText(widget.TextOpts.Text("Вход не произведён", TextFace, color.RGBA{255, 0, 0, 0})))
+	}
+
 }
 
 func (u *UI) ShowLogin() {
@@ -571,11 +581,11 @@ func (u *UI) ShowLogin() {
 
 			switch status {
 			case 200:
-				statusText.Color = color.RGBA{0, 255, 0, 0}
-				statusText.Label = "Успешный вход"
 				singletons.UserLogin.Email = emailInput.GetText()
 				singletons.UserLogin.Password = passwordInput.GetText()
 				singletons.UserLogin.Status = userstatus.Online
+				singletons.AppState.UIState = uistate.Main
+				singletons.AppState.StateChanged = true
 			case 401:
 				statusText.Color = color.RGBA{255, 0, 0, 0}
 				statusText.Label = "Неверная почта или пароль"
@@ -612,11 +622,11 @@ func (u *UI) ShowLogin() {
 
 			switch status {
 			case 200:
-				statusText.Color = color.RGBA{0, 255, 0, 0}
-				statusText.Label = "Успешная регистрация и вход"
 				singletons.UserLogin.Email = emailInput.GetText()
 				singletons.UserLogin.Password = passwordInput.GetText()
 				singletons.UserLogin.Status = userstatus.Online
+				singletons.AppState.UIState = uistate.Main
+				singletons.AppState.StateChanged = true
 			case 409:
 				statusText.Color = color.RGBA{255, 0, 0, 0}
 				statusText.Label = "Пользователь уже зарегистрирован"
@@ -638,5 +648,214 @@ func (u *UI) ShowLogin() {
 
 	u.ui.Container.AddChild(innerContainer)
 
-	u.ui.Container.AddChild(widget.NewText(widget.TextOpts.Text("", TextFace, color.Black)))
+	u.ui.Container.AddChild(
+		widget.NewText(
+			widget.TextOpts.Text("", TextFace, color.Black),
+			widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionStart),
+			widget.TextOpts.WidgetOpts(widget.WidgetOpts.LayoutData(
+				widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: false, MaxWidth: 600}),
+			),
+		))
+}
+
+func (u *UI) ShowSettings() {
+	// u.ui.Container.RemoveChildren()
+
+	fullscreenValueText := ""
+	if singletons.Settings.Fullscreen {
+		fullscreenValueText = "On"
+	} else {
+		fullscreenValueText = "Off"
+	}
+
+	u.ui.Container = widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewRowLayout(
+				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+				widget.RowLayoutOpts.Padding(widget.Insets{Top: 20, Left: 100, Right: 100, Bottom: 0}),
+				widget.RowLayoutOpts.Spacing(20),
+			),
+		),
+		widget.ContainerOpts.BackgroundImage(sliceIron),
+	)
+
+	u.ui.Container.AddChild(widget.NewButton(
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(54, 54),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionEnd,
+
+				// Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600,
+			}),
+		),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("main")
+			singletons.AppState.UIState = uistate.Main
+			singletons.AppState.StateChanged = true
+		}),
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceIronLight, Pressed: sliceIronLight}),
+		widget.ButtonOpts.Graphic(backButtonImage),
+	))
+
+	fullscreenLine := widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewGridLayout(
+				widget.GridLayoutOpts.Columns(2),
+				widget.GridLayoutOpts.Spacing(0, 0),
+				widget.GridLayoutOpts.Stretch([]bool{true, false}, []bool{false}),
+			),
+		),
+		// widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{})),
+		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
+	)
+
+	fullscreenLine.AddChild(widget.NewText(widget.TextOpts.Text("Fullscreen", TextFace, color.Black)))
+
+	fullscreenLine.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: slicePaper, Pressed: slicePaper}),
+		widget.ButtonOpts.Text(fullscreenValueText, TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.TextPosition(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(100, 40),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionEnd,
+			})),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			singletons.Settings.Fullscreen = !singletons.Settings.Fullscreen
+			ebiten.SetFullscreen(singletons.Settings.Fullscreen)
+			updateSettings()
+			u.ShowSettings()
+		}),
+	))
+
+	u.ui.Container.AddChild(fullscreenLine)
+
+	soundLine := widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewGridLayout(
+				widget.GridLayoutOpts.Columns(4),
+				widget.GridLayoutOpts.Spacing(0, 0),
+				widget.GridLayoutOpts.Stretch([]bool{true, false, false, false}, []bool{false}),
+			),
+		),
+		// widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{})),
+		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
+	)
+
+	soundLine.AddChild(widget.NewText(widget.TextOpts.Text("Sound", TextFace, color.Black)))
+
+	soundLine.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceIronLight, Pressed: sliceIronLight}),
+		widget.ButtonOpts.Graphic(minusButtonImage),
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(42, 42),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionEnd,
+			})),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			if singletons.Settings.Sound > 0 {
+				singletons.Settings.Sound--
+				updateSettings()
+				u.ShowSettings()
+			}
+		}),
+	))
+
+	soundLine.AddChild(widget.NewText(
+		widget.TextOpts.Text(strconv.Itoa(singletons.Settings.Sound), TextFace, color.White),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.TextOpts.WidgetOpts(widget.WidgetOpts.MinSize(50, 0)),
+	))
+
+	soundLine.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceIronLight, Pressed: sliceIronLight}),
+		widget.ButtonOpts.Graphic(plusButtonImage),
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(42, 42),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionEnd,
+			})),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			if singletons.Settings.Sound < 10 {
+				singletons.Settings.Sound++
+				updateSettings()
+				u.ShowSettings()
+			}
+		}),
+	))
+
+	u.ui.Container.AddChild(soundLine)
+
+	gameScaleLine := widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewGridLayout(
+				widget.GridLayoutOpts.Columns(4),
+				widget.GridLayoutOpts.Spacing(0, 0),
+				widget.GridLayoutOpts.Stretch([]bool{true, false, false, false}, []bool{false}),
+			),
+		),
+		// widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{})),
+		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
+	)
+
+	gameScaleLine.AddChild(widget.NewText(widget.TextOpts.Text("Game Default Scale", TextFace, color.Black)))
+
+	gameScaleLine.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceIronLight, Pressed: sliceIronLight}),
+		widget.ButtonOpts.Graphic(minusButtonImage),
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(42, 42),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionEnd,
+			})),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			if singletons.Settings.DefaultGameScale > 2 {
+				singletons.Settings.DefaultGameScale--
+				updateSettings()
+				u.ShowSettings()
+			}
+		}),
+	))
+
+	gameScaleLine.AddChild(widget.NewText(
+		widget.TextOpts.Text(strconv.Itoa(singletons.Settings.DefaultGameScale), TextFace, color.White),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.TextOpts.WidgetOpts(widget.WidgetOpts.MinSize(50, 0)),
+	))
+
+	gameScaleLine.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceIronLight, Pressed: sliceIronLight}),
+		widget.ButtonOpts.Graphic(plusButtonImage),
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(42, 42),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionEnd,
+			})),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			if singletons.Settings.DefaultGameScale < 10 {
+				singletons.Settings.DefaultGameScale++
+				updateSettings()
+				u.ShowSettings()
+			}
+		}),
+	))
+
+	u.ui.Container.AddChild(gameScaleLine)
+}
+
+func updateSettings() {
+	file, err := os.Create("conf.json")
+	if err != nil {
+		println("Unable to create new config file:", err.Error())
+	}
+
+	b, err := json.Marshal(singletons.Settings)
+	if err != nil {
+		println("Unable to marshal settings:", err.Error())
+	}
+	_, err = file.Write(b)
+	if err != nil {
+		println("Unable to write new config:", err.Error())
+	}
+	file.Close()
 }

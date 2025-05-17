@@ -91,9 +91,8 @@ func InitStartData() {
 		} else {
 			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Wait, IsAttackAllowed: true}
 		}
-
 	}
-
+	singletons.View.Scale = singletons.Settings.DefaultGameScale
 }
 
 func NewGame() *Game {
@@ -160,6 +159,10 @@ func (g *Game) Update() error {
 			g.ui.ShowMainMenu()
 		case uistate.Login:
 			g.ui.ShowLogin()
+		case uistate.Settings:
+			g.ui.ShowSettings()
+		case uistate.Statistics:
+			// TODO
 		}
 		singletons.AppState.StateChanged = false
 	}
