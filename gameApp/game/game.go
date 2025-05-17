@@ -18,6 +18,7 @@ import (
 	"strategy-game/util/data/teams"
 	"strategy-game/util/data/turn"
 	"strategy-game/util/data/turn/turnstate"
+	"strategy-game/util/data/userstatus"
 	"strategy-game/util/ecs"
 	"strategy-game/util/ecs/psize"
 	"strategy-game/util/network"
@@ -105,6 +106,8 @@ func NewGame() *Game {
 	// VIEW
 	singletons.View.Image = ebiten.NewImage(singletons.Render.Width, singletons.Render.Height)
 	singletons.View.Scale = 2
+
+	singletons.UserLogin.Status = userstatus.Offline
 
 	g.ui.ShowMainMenu()
 	// g.ui.ShowLogin()

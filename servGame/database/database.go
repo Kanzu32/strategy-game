@@ -97,7 +97,7 @@ func (db *Database) Register(account *Account) error {
 	return nil
 }
 
-func (db *Database) UpdateUserStats(email, password string, damage, cells int) error {
+func (db *Database) UpdateUserStats(email, password, statName string, value int) error {
 	var account Account
 	err := db.accounts.FindOne(context.TODO(), bson.M{
 		"email":    email,
@@ -109,10 +109,10 @@ func (db *Database) UpdateUserStats(email, password string, damage, cells int) e
 	}
 
 	filter := bson.M{"email": email}
+
 	update := bson.M{
 		"$inc": bson.M{
-			"total_damage": damage,
-			"total_cells":  cells,
+			statName: value, // Работает???
 		},
 	}
 	opts := options.Update().SetUpsert(true)

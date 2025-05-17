@@ -36,6 +36,13 @@ type GameStartData struct {
 	Team string `json:"team"`
 }
 
+type Statistics struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	StatName string `json:"statname"`
+	Value    int    `json:"value"`
+}
+
 func NewServer(database *database.Database) *Server {
 	log.Println("Создание нового сервера")
 	return &Server{
@@ -48,7 +55,7 @@ func (s *Server) Start(port string) {
 	http.HandleFunc("/api/register", s.handleRegister)
 	http.HandleFunc("/api/login", s.handleLogin)
 	http.HandleFunc("/api/map", s.handleGetMap)
-	http.HandleFunc("/api/stats", s.handleUpdateStats)
+	// http.HandleFunc("/api/stats", s.handleUpdateStats)
 	// http.HandleFunc("/api/game/create", s.handleCreateGame)
 	// http.HandleFunc("/api/game/endturn", s.handleEndTurn)
 	// http.HandleFunc("/api/game/state", s.handleGameState)
@@ -177,8 +184,11 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 	redCheckSumChan := make(chan string)
 	redLastCheckSum := ""
 
-	go s.handleClientInput(connBlue, blueInputChan, blueCheckSumChan) // BLUE
-	go s.handleClientInput(connRed, redInputChan, redCheckSumChan)    // RED
+	blueStatisticsChan := make(chan Statistics)
+	redStatisticsChan := make(chan Statistics)
+
+	go s.handleClientInput(connBlue, blueInputChan, blueCheckSumChan, blueStatisticsChan) // BLUE
+	go s.handleClientInput(connRed, redInputChan, redCheckSumChan, redStatisticsChan)     // RED
 
 	for {
 		select {
@@ -271,11 +281,32 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 			} else {
 				redLastCheckSum = checksum
 			}
+
+		case statistics, ok := <-blueStatisticsChan:
+			if ok == false {
+				log.Println("СИНЯЯ команда закрыла соединение, завершение сессии")
+				return
+			}
+
+			err := s.database.UpdateUserStats(statistics.Email, statistics.Password, statistics.StatName, statistics.Value)
+			if err != nil {
+				log.Println(err)
+			}
+		case statistics, ok := <-redStatisticsChan:
+			if ok == false {
+				log.Println("КРАСНАЯ команда закрыла соединение, завершение сессии")
+				return
+			}
+
+			err := s.database.UpdateUserStats(statistics.Email, statistics.Password, statistics.StatName, statistics.Value)
+			if err != nil {
+				log.Println(err)
+			}
 		}
 	}
 }
 
-func (s *Server) handleClientInput(conn net.Conn, inputChan chan<- GameData, checksumChan chan<- string) {
+func (s *Server) handleClientInput(conn net.Conn, inputChan chan<- GameData, checksumChan chan<- string, statisticsChan chan<- Statistics) {
 	var packet Packet
 	for {
 		println("ждём ввода")
@@ -307,6 +338,14 @@ func (s *Server) handleClientInput(conn net.Conn, inputChan chan<- GameData, che
 			inputChan <- data
 		} else if packet.Type == "CHECKSUM" {
 			checksumChan <- packet.Data
+		} else if packet.Type == "STATISTICS" {
+			var data Statistics
+			err := json.Unmarshal([]byte(packet.Data), &data)
+			if err != nil {
+				log.Println("Ошибка при десериализации данных Statistics от пользователя:", err)
+				return
+			}
+			statisticsChan <- data
 		} else {
 			log.Println("Неизвестный тип пакета от пользователя")
 		}
@@ -379,29 +418,31 @@ func respondWithError(w http.ResponseWriter, code int) {
 	w.WriteHeader(code)
 }
 
-type StatsRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Damage   int    `json:"damage"`
-	Cells    int    `json:"cells"`
-}
+// type StatsRequest struct {
+// 	Email    string `json:"email"`
+// 	Password string `json:"password"`
+// 	Damage   int    `json:"damage"`
+// 	Cells    int    `json:"cells"`
+// }
 
-func (s *Server) handleUpdateStats(w http.ResponseWriter, r *http.Request) {
-	var req StatsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
+// TODO delete
 
-	err := s.database.UpdateUserStats(req.Email, req.Password, req.Damage, req.Cells)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
+// func (s *Server) handleUpdateStats(w http.ResponseWriter, r *http.Request) {
+// 	var req StatsRequest
+// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+// 		http.Error(w, "Invalid request", http.StatusBadRequest)
+// 		return
+// 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Stats updated"))
-}
+// 	err := s.database.UpdateUserStats(req.Email, req.Password, req.Damage, req.Cells)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusUnauthorized)
+// 		return
+// 	}
+
+// 	w.WriteHeader(http.StatusOK)
+// 	w.Write([]byte("Stats updated"))
+// }
 
 func (s *Server) handleGetMap(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")

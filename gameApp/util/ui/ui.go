@@ -9,6 +9,7 @@ import (
 	"strategy-game/game/singletons"
 	"strategy-game/util/data/gamemode"
 	"strategy-game/util/data/turn/turnstate"
+	"strategy-game/util/data/userstatus"
 	"strategy-game/util/ecs"
 	"strategy-game/util/network"
 
@@ -27,6 +28,7 @@ import (
 
 var TextFace *text.GoXFace
 var sliceStandard *image.NineSlice
+var sliceStandardDisabled *image.NineSlice
 var sliceIron *image.NineSlice
 var sliceWood *image.NineSlice
 var slicePaper *image.NineSlice
@@ -76,6 +78,14 @@ func CreateUI() UI {
 	newImg := ebiten.NewImage(img.Bounds().Dx()*3, img.Bounds().Dy()*3)
 	newImg.DrawImage(img, &opt)
 	sliceStandard = image.NewNineSliceSimple(newImg, 6*3, 4*3)
+
+	img, _, err = ebitenutil.NewImageFromFile(assets.NineSliceStandardDisabled)
+	if err != nil {
+		panic(err)
+	}
+	newImg = ebiten.NewImage(img.Bounds().Dx()*3, img.Bounds().Dy()*3)
+	newImg.DrawImage(img, &opt)
+	sliceStandardDisabled = image.NewNineSliceSimple(newImg, 6*3, 4*3)
 
 	img, _, err = ebitenutil.NewImageFromFile(assets.NineSliceIron)
 	if err != nil {
@@ -357,9 +367,9 @@ func (u *UI) ShowMainMenu() {
 		widget.ContainerOpts.BackgroundImage(sliceIron),
 	)
 
-	u.ui.Container.AddChild(widget.NewButton(
-		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+	onlineButton := widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard, Disabled: sliceStandardDisabled}),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
 		widget.ButtonOpts.Text("Play online", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
@@ -368,11 +378,13 @@ func (u *UI) ShowMainMenu() {
 			singletons.AppState.UIState = uistate.Game
 			singletons.AppState.StateChanged = true
 		}),
-	))
+	)
+
+	u.ui.Container.AddChild(onlineButton)
 
 	u.ui.Container.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
 		widget.ButtonOpts.Text("Play Offline", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
@@ -385,19 +397,33 @@ func (u *UI) ShowMainMenu() {
 
 	u.ui.Container.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
 		widget.ButtonOpts.Text("Settings", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			println("play online")
+			println("settings")
 			// singletons.UIState = uistate.Game
 			// singletons.GameMode = gamemode.Online
 		}),
 	))
 
+	statisticsButton := widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard, Disabled: sliceStandardDisabled}),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
+		widget.ButtonOpts.Text("Statistics", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("statistics")
+			// singletons.UIState = uistate.Game
+			// singletons.GameMode = gamemode.Online
+		}),
+	)
+
+	u.ui.Container.AddChild(statisticsButton)
+
 	u.ui.Container.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard}),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
 		widget.ButtonOpts.Text("Login", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
@@ -406,6 +432,12 @@ func (u *UI) ShowMainMenu() {
 			singletons.AppState.StateChanged = true
 		}),
 	))
+
+	if singletons.UserLogin.Status == userstatus.Offline {
+		println("disabled")
+		onlineButton.GetWidget().Disabled = true
+		statisticsButton.GetWidget().Disabled = true
+	}
 }
 
 func (u *UI) ShowLogin() {
@@ -426,7 +458,8 @@ func (u *UI) ShowLogin() {
 			widget.WidgetOpts.MinSize(54, 54),
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
 				Position: widget.RowLayoutPositionEnd,
-				// Stretch: true,
+
+				// Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600,
 			}),
 		),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
@@ -441,8 +474,9 @@ func (u *UI) ShowLogin() {
 		widget.TextInputOpts.WidgetOpts(
 			widget.WidgetOpts.MinSize(400, 10),
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				// Position: widget.RowLayoutPositionCenter,
-				Stretch: true,
+				// Stretch: true,
+
+				Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600,
 			}),
 		),
 		widget.TextInputOpts.Image(&widget.TextInputImage{
@@ -477,7 +511,9 @@ func (u *UI) ShowLogin() {
 	u.ui.Container.AddChild(widget.NewTextInput(
 		widget.TextInputOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Stretch: true,
+				// Stretch: true,
+
+				Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600,
 			}),
 		),
 		widget.TextInputOpts.Image(&widget.TextInputImage{
@@ -511,13 +547,17 @@ func (u *UI) ShowLogin() {
 				widget.GridLayoutOpts.Stretch([]bool{true, true}, []bool{false}),
 			),
 		),
-		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{})),
+		// widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{})),
+		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
 	)
 
 	innerContainer.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(180, 10)),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+			// Stretch: true
+			Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600,
+		})),
 		widget.ButtonOpts.Text("Login", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
@@ -533,13 +573,23 @@ func (u *UI) ShowLogin() {
 			case 200:
 				statusText.Color = color.RGBA{0, 255, 0, 0}
 				statusText.Label = "Успешный вход"
+				singletons.UserLogin.Email = emailInput.GetText()
+				singletons.UserLogin.Password = passwordInput.GetText()
+				singletons.UserLogin.Status = userstatus.Online
 			case 401:
 				statusText.Color = color.RGBA{255, 0, 0, 0}
 				statusText.Label = "Неверная почта или пароль"
+				singletons.UserLogin.Email = ""
+				singletons.UserLogin.Password = ""
+				singletons.UserLogin.Status = userstatus.Offline
 			default:
 				statusText.Color = color.RGBA{255, 0, 0, 0}
 				statusText.Label = "Ошибка при входе"
+				singletons.UserLogin.Email = ""
+				singletons.UserLogin.Password = ""
+				singletons.UserLogin.Status = userstatus.Offline
 			}
+
 			// singletons.AppState.GameMode = gamemode.Local
 			// singletons.AppState.UIState = uistate.Game
 			// singletons.AppState.StateChanged = true
@@ -549,7 +599,7 @@ func (u *UI) ShowLogin() {
 	innerContainer.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(180, 10)),
-		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true})),
+		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
 		widget.ButtonOpts.Text("Register", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
@@ -564,12 +614,21 @@ func (u *UI) ShowLogin() {
 			case 200:
 				statusText.Color = color.RGBA{0, 255, 0, 0}
 				statusText.Label = "Успешная регистрация и вход"
+				singletons.UserLogin.Email = emailInput.GetText()
+				singletons.UserLogin.Password = passwordInput.GetText()
+				singletons.UserLogin.Status = userstatus.Online
 			case 409:
 				statusText.Color = color.RGBA{255, 0, 0, 0}
 				statusText.Label = "Пользователь уже зарегистрирован"
+				singletons.UserLogin.Email = ""
+				singletons.UserLogin.Password = ""
+				singletons.UserLogin.Status = userstatus.Offline
 			default:
 				statusText.Color = color.RGBA{255, 0, 0, 0}
 				statusText.Label = "Ошибка при регистрации"
+				singletons.UserLogin.Email = ""
+				singletons.UserLogin.Password = ""
+				singletons.UserLogin.Status = userstatus.Offline
 			}
 			// singletons.AppState.GameMode = gamemode.Local
 			// singletons.AppState.UIState = uistate.Game

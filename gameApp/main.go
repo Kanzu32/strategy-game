@@ -17,9 +17,11 @@ import (
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
-	ebiten.SetWindowSize(640, 480)
+	ebiten.SetWindowSize(1280, 720)
 	ebiten.SetWindowTitle("Смутьяны!")
-	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+	// ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+
+	// ebiten.SetFullscreen(true)
 	if err := ebiten.RunGame(game.NewGame()); err != nil {
 		log.Fatal(err)
 	}

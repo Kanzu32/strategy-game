@@ -403,6 +403,9 @@ func (s *MoveSystem) Run() {
 
 			energy.Energy -= singletons.ClassStats[class.Class].MoveCost
 
+			// Статистика передвижения
+			network.SendStatistics("total_cells", 1)
+
 			// в конце удаляем флаги таргета для наблюдателя
 			// if singletons.Turn.State == turnstate.Wait {
 			// 	for _, ent := range pools.TargetUnitFlag.Entities() {
@@ -608,10 +611,16 @@ func (s *AttackSystem) Run() {
 							offestX == 0 && tilePos.X >= attackerPos.X-1 && tilePos.X <= attackerPos.X+1 && tilePos.Y == attackerPos.Y+offestY) {
 
 						pools.DamagePool.AddExistingEntity(*occupied.UnitObject, components.Damage{Value: singletons.ClassStats[attackerClass.Class].Attack, Type: damagetype.Hit})
+
+						// Статистика урона
+						network.SendStatistics("total_damage", int(singletons.ClassStats[attackerClass.Class].Attack)*3)
 					}
 				}
 			} else {
 				pools.DamagePool.AddExistingEntity(*attack.Target, components.Damage{Value: singletons.ClassStats[attackerClass.Class].Attack * uint8(damageMult), Type: damagetype.Hit})
+
+				// Статистика урона
+				network.SendStatistics("total_damage", int(singletons.ClassStats[attackerClass.Class].Attack)*damageMult)
 			}
 
 			pools.TweenPool.RemoveEntity(unit)

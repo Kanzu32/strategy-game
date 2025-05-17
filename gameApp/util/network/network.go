@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
+	"strategy-game/util/data/gamemode"
 	"strategy-game/util/data/teams"
 	"strategy-game/util/ecs"
 )
@@ -29,6 +30,13 @@ type UserData struct {
 
 type GameStartData struct {
 	Team string `json:"team"`
+}
+
+type Statistics struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	StatName string `json:"statname"`
+	Value    int    `json:"value"`
 }
 
 // type ServerConnection struct {
@@ -160,6 +168,31 @@ func SendChecksum() {
 		panic(err)
 	}
 	print("Send checksum: ", string(b))
+	n, err := conn.Write(b)
+	if n == 0 || err != nil {
+		panic(err)
+	}
+}
+
+// statName: "total_damage", "total_cells"
+func SendStatistics(statName string, value int) {
+	if singletons.AppState.GameMode != gamemode.Online || singletons.Turn.CurrentTurn != singletons.Turn.PlayerTeam {
+		return
+	}
+	b, err := json.Marshal(
+		Statistics{Email: singletons.UserLogin.Email,
+			Password: singletons.UserLogin.Password,
+			StatName: statName,
+			Value:    value})
+	if err != nil {
+		panic(err)
+	}
+
+	b, err = json.Marshal(Packet{Type: "STATISTICS", Data: string(b)})
+	if err != nil {
+		panic(err)
+	}
+	print("Send: ", string(b))
 	n, err := conn.Write(b)
 	if n == 0 || err != nil {
 		panic(err)

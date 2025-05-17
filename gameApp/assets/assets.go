@@ -27,6 +27,7 @@ var Tilemap = "assets/tiles/tilemaps/tilemap.json"
 
 // var MainMenuBackground = "assets/ui/nine_slice/main_background.png"
 var NineSliceStandard = "assets/ui/nine_slice/nine_slice_ui_standard.png"
+var NineSliceStandardDisabled = "assets/ui/nine_slice/nine_slice_ui_standard_disabled.png"
 var NineSliceIron = "assets/ui/nine_slice/nine_slice_ui_iron.png"
 var NineSliceIronLight = "assets/ui/nine_slice/nine_slice_ui_iron_light.png"
 var NineSliceWood = "assets/ui/nine_slice/nine_slice_ui_wood.png"
