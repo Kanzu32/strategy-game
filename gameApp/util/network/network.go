@@ -75,7 +75,7 @@ func gameResponse() {
 		buf := make([]byte, 1024)
 		n, err := conn.Read(buf)
 		if n == 0 || err != nil { // TODO закрываться здесь
-			panic(err)
+			return
 		}
 
 		var packet Packet
@@ -122,6 +122,12 @@ func gameResponse() {
 		}
 	}
 
+}
+
+func EndGame() {
+	if singletons.AppState.GameMode == gamemode.Online {
+		conn.Close()
+	}
 }
 
 func SendGameData(unitID ecs.Entity, tileID ecs.Entity) {

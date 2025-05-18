@@ -2,7 +2,6 @@ package sprite
 
 import (
 	"image"
-	"log"
 	"strategy-game/game/singletons"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -87,7 +86,7 @@ func (s *Sprite) SetAnimation(animationName string) {
 	s.currentAnimation = animationName
 	s.currentFrame = 0
 	s.animationStartFrame = singletons.FrameCount - 1
-	log.Println("ANIMATION SET ", animationName)
+	// log.Println("ANIMATION SET ", animationName)
 }
 
 func (s *Sprite) AddAnimation(animationName string, frames []Frame) {

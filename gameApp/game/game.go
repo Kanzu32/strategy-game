@@ -83,18 +83,19 @@ func InitSystems(w *ecs.World) {
 
 func InitStartData() {
 	if singletons.AppState.GameMode == gamemode.Local {
-		singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: teams.Blue, State: turnstate.Input, IsAttackAllowed: true}
+		singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: teams.Blue, State: turnstate.Input, IsAttackAllowed: true, IsTurnEnds: false, IsGameEnds: false}
 	} else {
 		team := <-network.TeamChan
 		println("TEAM:", team)
 		if team == teams.Blue {
-			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Input, IsAttackAllowed: true}
+			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Input, IsAttackAllowed: true, IsTurnEnds: false, IsGameEnds: false}
 		} else {
-			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Wait, IsAttackAllowed: true}
+			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Wait, IsAttackAllowed: true, IsTurnEnds: false, IsGameEnds: false}
 		}
 	}
 	singletons.View.Scale = singletons.Settings.DefaultGameScale
-
+	singletons.View.ShiftX = 0
+	singletons.View.ShiftY = 0
 }
 
 func NewGame() *Game {
@@ -158,6 +159,7 @@ func (g *Game) Update() error {
 		case uistate.Game:
 			g.StartGame()
 			g.ui.ShowGameControls()
+			println("Game start!!!!!!")
 		case uistate.Main:
 			g.ui.ShowMainMenu()
 		case uistate.Login:
@@ -166,6 +168,8 @@ func (g *Game) Update() error {
 			g.ui.ShowSettings()
 		case uistate.Statistics:
 			// TODO
+		case uistate.Results:
+			g.ui.ShowGameResult()
 		}
 		singletons.AppState.StateChanged = false
 	}
@@ -174,8 +178,15 @@ func (g *Game) Update() error {
 
 	if singletons.AppState.UIState == uistate.Game {
 		singletons.FrameCount++
-		// g.handleInput()
-		g.world.Update()
+
+		if singletons.Turn.IsGameEnds == true {
+			singletons.AppState.UIState = uistate.Results
+			singletons.AppState.StateChanged = true
+			network.EndGame()
+			singletons.Turn.IsGameEnds = false
+		} else {
+			g.world.Update()
+		}
 	}
 
 	sound.RestartMusicIfNeeds()
@@ -217,6 +228,9 @@ func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
 	objectLayer := tilemap.Layers[1] // 2 layer (objects)
 	utilLayer := tilemap.Layers[2]   // 2 layer (util)
 
+	singletons.MapSize.Height = 30
+	singletons.MapSize.Width = 30
+	println("Map: ", singletons.MapSize.Width, singletons.MapSize.Height)
 	for i := 0; i < groundLayer.Height*groundLayer.Width; i++ {
 
 		// ##GROUND##

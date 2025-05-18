@@ -34,7 +34,41 @@ func (s *TurnSystem) Run() { // highlight active units
 	if singletons.Turn.State == turnstate.Action {
 		for _, ent := range pools.ActiveFlag.Entities() {
 			pools.ActiveFlag.RemoveEntity(ent)
-			println("FUCK 1")
+		}
+	}
+
+	isBlueAlive := false
+	isRedAlive := false
+
+	units := ecs.PoolFilter([]ecs.AnyPool{pools.TeamPool, pools.UnitFlag}, []ecs.AnyPool{})
+	for _, unit := range units {
+		if !pools.DeadFlag.HasEntity(unit) {
+			team, err := pools.TeamPool.Component(unit)
+			if err != nil {
+				panic(err)
+			}
+			if team.Team == teams.Blue {
+				isBlueAlive = true
+			} else if team.Team == teams.Red {
+				isRedAlive = true
+			}
+		}
+	}
+
+	if isBlueAlive == false {
+		singletons.Turn.IsGameEnds = true
+		singletons.Turn.Winner = teams.Red
+
+	} else if isRedAlive == false {
+		singletons.Turn.IsGameEnds = true
+		singletons.Turn.Winner = teams.Blue
+	}
+
+	if singletons.Turn.IsGameEnds {
+		if singletons.Turn.Winner == singletons.Turn.PlayerTeam {
+			network.SendStatistics("win_count", 1)
+		} else {
+			network.SendStatistics("lose_count", 1)
 		}
 	}
 }

@@ -11,4 +11,6 @@ type Turn struct {
 	State           turnstate.TurnState
 	IsTurnEnds      bool
 	IsAttackAllowed bool
+	IsGameEnds      bool
+	Winner          teams.Team
 }

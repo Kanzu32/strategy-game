@@ -10,6 +10,7 @@ import (
 	"strategy-game/game/pools"
 	"strategy-game/game/singletons"
 	"strategy-game/util/data/gamemode"
+	"strategy-game/util/data/teams"
 	"strategy-game/util/data/turn/turnstate"
 	"strategy-game/util/data/userstatus"
 	"strategy-game/util/ecs"
@@ -30,6 +31,7 @@ import (
 )
 
 var TextFace *text.GoXFace
+var LargeTextFace *text.GoXFace
 var sliceStandard *image.NineSlice
 var sliceStandardDisabled *image.NineSlice
 var sliceIron *image.NineSlice
@@ -70,6 +72,9 @@ func loadFont(size float64) (font.Face, error) {
 func CreateUI() UI {
 	f, _ := loadFont(36)
 	TextFace = text.NewGoXFace(f)
+
+	f, _ = loadFont(100)
+	LargeTextFace = text.NewGoXFace(f)
 
 	opt := ebiten.DrawImageOptions{}
 	opt.GeoM.Scale(3.0, 3.0)
@@ -191,6 +196,18 @@ func handleGameInput() {
 		singletons.View.ShiftY -= lastPositionY - y
 		lastPositionX = x
 		lastPositionY = y
+		if singletons.View.ShiftX > 0 {
+			singletons.View.ShiftX = 0
+		}
+		if singletons.View.ShiftY > 0 {
+			singletons.View.ShiftY = 0
+		}
+		if singletons.View.ShiftX < -singletons.MapSize.Width*16*singletons.View.Scale+singletons.Render.Width {
+			singletons.View.ShiftX = -singletons.MapSize.Width*16*singletons.View.Scale + singletons.Render.Width
+		}
+		if singletons.View.ShiftY < -singletons.MapSize.Height*16*singletons.View.Scale+singletons.Render.Height {
+			singletons.View.ShiftY = -singletons.MapSize.Height*16*singletons.View.Scale + singletons.Render.Height
+		}
 		println(singletons.View.ShiftX, singletons.View.ShiftY)
 	}
 
@@ -328,7 +345,7 @@ func (u *UI) ShowGameControls() {
 		// widget.ButtonOpts.ClickedHandler(g.ViewScaleInc),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("inc")
-			if singletons.View.Scale != 10 {
+			if singletons.View.Scale < 10 {
 				singletons.View.Scale++
 			}
 		}),
@@ -345,12 +362,74 @@ func (u *UI) ShowGameControls() {
 		),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("dec")
-			if singletons.View.Scale != 1 {
+			if singletons.View.Scale > 3 {
 				singletons.View.Scale--
 			}
 		}),
 	))
 
+}
+
+func (u *UI) ShowGameResult() {
+	u.ui.Container = widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewRowLayout(
+				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+				widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(100)),
+				widget.RowLayoutOpts.Spacing(20),
+			),
+		),
+		widget.ContainerOpts.BackgroundImage(sliceIron),
+	)
+
+	resultMsg := ""
+	winnerColor := color.RGBA{0, 0, 0, 0}
+	if singletons.AppState.GameMode == gamemode.Local {
+		if singletons.Turn.Winner == teams.Blue {
+			resultMsg = singletons.LanguageText[singletons.Settings.Language].WinBlue
+			winnerColor = color.RGBA{0, 0, 255, 0}
+		} else {
+			resultMsg = singletons.LanguageText[singletons.Settings.Language].WinRed
+			winnerColor = color.RGBA{255, 0, 0, 0}
+		}
+	} else if singletons.AppState.GameMode == gamemode.Online {
+		if singletons.Turn.Winner == singletons.Turn.PlayerTeam {
+			resultMsg = singletons.LanguageText[singletons.Settings.Language].WinOnline
+			winnerColor = color.RGBA{0, 255, 0, 0}
+		} else {
+			resultMsg = singletons.LanguageText[singletons.Settings.Language].LoseOnline
+			winnerColor = color.RGBA{255, 0, 0, 0}
+		}
+	}
+
+	u.ui.Container.AddChild(widget.NewText(
+		widget.TextOpts.Text(resultMsg, LargeTextFace, winnerColor),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(100, 80),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600,
+			}),
+		),
+	))
+
+	u.ui.Container.AddChild(widget.NewButton(
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(50, 100),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				// Position: widget.RowLayoutPositionEnd,
+
+				Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 400,
+			}),
+		),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("main")
+			singletons.AppState.UIState = uistate.Main
+			singletons.AppState.StateChanged = true
+		}),
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard}),
+		widget.ButtonOpts.Text(singletons.LanguageText[singletons.Settings.Language].ToMainMenu, TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+	))
 }
 
 // func (u *UI) GetFocused() widget.Focuser {
@@ -373,7 +452,7 @@ func (u *UI) ShowMainMenu() {
 	onlineButton := widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard, Disabled: sliceStandardDisabled}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
-		widget.ButtonOpts.Text("Play online", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.Text(singletons.LanguageText[singletons.Settings.Language].PlayOnline, TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("play online")
@@ -388,7 +467,7 @@ func (u *UI) ShowMainMenu() {
 	u.ui.Container.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
-		widget.ButtonOpts.Text("Play Offline", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.Text(singletons.LanguageText[singletons.Settings.Language].PlayOffline, TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("play offline")
@@ -401,7 +480,7 @@ func (u *UI) ShowMainMenu() {
 	u.ui.Container.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
-		widget.ButtonOpts.Text("Settings", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.Text(singletons.LanguageText[singletons.Settings.Language].Settings, TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("settings")
@@ -413,7 +492,7 @@ func (u *UI) ShowMainMenu() {
 	statisticsButton := widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard, Disabled: sliceStandardDisabled}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
-		widget.ButtonOpts.Text("Statistics", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.Text(singletons.LanguageText[singletons.Settings.Language].Statistics, TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("statistics")
@@ -427,7 +506,7 @@ func (u *UI) ShowMainMenu() {
 	u.ui.Container.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
-		widget.ButtonOpts.Text("Login", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.Text(singletons.LanguageText[singletons.Settings.Language].Login, TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("login")
@@ -443,9 +522,9 @@ func (u *UI) ShowMainMenu() {
 	}
 
 	if singletons.UserLogin.Status == userstatus.Online {
-		u.ui.Container.AddChild(widget.NewText(widget.TextOpts.Text("Вход произведён: "+singletons.UserLogin.Email, TextFace, color.RGBA{0, 255, 0, 0})))
+		u.ui.Container.AddChild(widget.NewText(widget.TextOpts.Text(singletons.LanguageText[singletons.Settings.Language].OnlineStatus+singletons.UserLogin.Email, TextFace, color.RGBA{0, 255, 0, 0})))
 	} else {
-		u.ui.Container.AddChild(widget.NewText(widget.TextOpts.Text("Вход не произведён", TextFace, color.RGBA{255, 0, 0, 0})))
+		u.ui.Container.AddChild(widget.NewText(widget.TextOpts.Text(singletons.LanguageText[singletons.Settings.Language].OfflineStatus, TextFace, color.RGBA{255, 0, 0, 0})))
 	}
 
 }
@@ -508,7 +587,7 @@ func (u *UI) ShowLogin() {
 			}
 			return res, &newInputText
 		}),
-		widget.TextInputOpts.Placeholder("Email"),
+		widget.TextInputOpts.Placeholder(singletons.LanguageText[singletons.Settings.Language].Email),
 		widget.TextInputOpts.IgnoreEmptySubmit(true),
 		widget.TextInputOpts.SubmitHandler(func(args *widget.TextInputChangedEventArgs) {
 			return
@@ -538,7 +617,7 @@ func (u *UI) ShowLogin() {
 			Caret:         color.Black,
 			DisabledCaret: color.Black,
 		}),
-		widget.TextInputOpts.Placeholder("Password"),
+		widget.TextInputOpts.Placeholder(singletons.LanguageText[singletons.Settings.Language].Password),
 		widget.TextInputOpts.IgnoreEmptySubmit(true),
 		widget.TextInputOpts.Secure(true),
 		widget.TextInputOpts.SubmitHandler(func(args *widget.TextInputChangedEventArgs) {
@@ -568,7 +647,7 @@ func (u *UI) ShowLogin() {
 			// Stretch: true
 			Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600,
 		})),
-		widget.ButtonOpts.Text("Login", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.Text(singletons.LanguageText[singletons.Settings.Language].Login, TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("login")
@@ -588,13 +667,13 @@ func (u *UI) ShowLogin() {
 				singletons.AppState.StateChanged = true
 			case 401:
 				statusText.Color = color.RGBA{255, 0, 0, 0}
-				statusText.Label = "Неверная почта или пароль"
+				statusText.Label = singletons.LanguageText[singletons.Settings.Language].LoginError
 				singletons.UserLogin.Email = ""
 				singletons.UserLogin.Password = ""
 				singletons.UserLogin.Status = userstatus.Offline
 			default:
 				statusText.Color = color.RGBA{255, 0, 0, 0}
-				statusText.Label = "Ошибка при входе"
+				statusText.Label = singletons.LanguageText[singletons.Settings.Language].ConnectionError
 				singletons.UserLogin.Email = ""
 				singletons.UserLogin.Password = ""
 				singletons.UserLogin.Status = userstatus.Offline
@@ -629,13 +708,13 @@ func (u *UI) ShowLogin() {
 				singletons.AppState.StateChanged = true
 			case 409:
 				statusText.Color = color.RGBA{255, 0, 0, 0}
-				statusText.Label = "Пользователь уже зарегистрирован"
+				statusText.Label = singletons.LanguageText[singletons.Settings.Language].RegisterError
 				singletons.UserLogin.Email = ""
 				singletons.UserLogin.Password = ""
 				singletons.UserLogin.Status = userstatus.Offline
 			default:
 				statusText.Color = color.RGBA{255, 0, 0, 0}
-				statusText.Label = "Ошибка при регистрации"
+				statusText.Label = singletons.LanguageText[singletons.Settings.Language].ConnectionError
 				singletons.UserLogin.Email = ""
 				singletons.UserLogin.Password = ""
 				singletons.UserLogin.Status = userstatus.Offline
@@ -663,10 +742,12 @@ func (u *UI) ShowSettings() {
 
 	fullscreenValueText := ""
 	if singletons.Settings.Fullscreen {
-		fullscreenValueText = "On"
+		fullscreenValueText = singletons.LanguageText[singletons.Settings.Language].On
 	} else {
-		fullscreenValueText = "Off"
+		fullscreenValueText = singletons.LanguageText[singletons.Settings.Language].Off
 	}
+
+	LanguageValueText := singletons.Settings.Language
 
 	u.ui.Container = widget.NewContainer(
 		widget.ContainerOpts.Layout(
@@ -709,7 +790,7 @@ func (u *UI) ShowSettings() {
 		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
 	)
 
-	fullscreenLine.AddChild(widget.NewText(widget.TextOpts.Text("Fullscreen", TextFace, color.Black)))
+	fullscreenLine.AddChild(widget.NewText(widget.TextOpts.Text(singletons.LanguageText[singletons.Settings.Language].Fullscreen, TextFace, color.Black)))
 
 	fullscreenLine.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: slicePaper, Pressed: slicePaper}),
@@ -730,6 +811,42 @@ func (u *UI) ShowSettings() {
 
 	u.ui.Container.AddChild(fullscreenLine)
 
+	languageLine := widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewGridLayout(
+				widget.GridLayoutOpts.Columns(2),
+				widget.GridLayoutOpts.Spacing(0, 0),
+				widget.GridLayoutOpts.Stretch([]bool{true, false}, []bool{false}),
+			),
+		),
+		// widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{})),
+		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
+	)
+
+	languageLine.AddChild(widget.NewText(widget.TextOpts.Text(singletons.LanguageText[singletons.Settings.Language].Language, TextFace, color.Black)))
+
+	languageLine.AddChild(widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: slicePaper, Pressed: slicePaper}),
+		widget.ButtonOpts.Text(LanguageValueText, TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.TextPosition(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(100, 40),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionEnd,
+			})),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			if singletons.Settings.Language == "Eng" {
+				singletons.Settings.Language = "Rus"
+			} else {
+				singletons.Settings.Language = "Eng"
+			}
+			updateSettings()
+			u.ShowSettings()
+		}),
+	))
+
+	u.ui.Container.AddChild(languageLine)
+
 	soundLine := widget.NewContainer(
 		widget.ContainerOpts.Layout(
 			widget.NewGridLayout(
@@ -742,7 +859,7 @@ func (u *UI) ShowSettings() {
 		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
 	)
 
-	soundLine.AddChild(widget.NewText(widget.TextOpts.Text("Sound", TextFace, color.Black)))
+	soundLine.AddChild(widget.NewText(widget.TextOpts.Text(singletons.LanguageText[singletons.Settings.Language].Sound, TextFace, color.Black)))
 
 	soundLine.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceIronLight, Pressed: sliceIronLight}),
@@ -798,7 +915,7 @@ func (u *UI) ShowSettings() {
 		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
 	)
 
-	gameScaleLine.AddChild(widget.NewText(widget.TextOpts.Text("Game Default Scale", TextFace, color.Black)))
+	gameScaleLine.AddChild(widget.NewText(widget.TextOpts.Text(singletons.LanguageText[singletons.Settings.Language].GameDefaultScale, TextFace, color.Black)))
 
 	gameScaleLine.AddChild(widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceIronLight, Pressed: sliceIronLight}),
@@ -809,7 +926,7 @@ func (u *UI) ShowSettings() {
 				Position: widget.RowLayoutPositionEnd,
 			})),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			if singletons.Settings.DefaultGameScale > 2 {
+			if singletons.Settings.DefaultGameScale > 3 {
 				singletons.Settings.DefaultGameScale--
 				updateSettings()
 				u.ShowSettings()

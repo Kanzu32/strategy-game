@@ -21,7 +21,7 @@ var ClassStats = map[classes.Class]stats.Stats{
 		AttackCost:          1,
 		ActionCost:          1,
 		MaxHealth:           25,
-		Attack:              2,
+		Attack:              100, //2
 		AttackDistanceStart: 1,
 		AttackDistanceEnd:   1,
 	},
@@ -33,7 +33,7 @@ var ClassStats = map[classes.Class]stats.Stats{
 		AttackCost:          1,
 		ActionCost:          1,
 		MaxHealth:           20,
-		Attack:              4,
+		Attack:              100, //4
 		AttackDistanceStart: 2,
 		AttackDistanceEnd:   2.25,
 	},
@@ -57,15 +57,11 @@ var ClassStats = map[classes.Class]stats.Stats{
 		AttackCost:          1,
 		ActionCost:          1,
 		MaxHealth:           15,
-		Attack:              2,
+		Attack:              100, //2
 		AttackDistanceStart: 1,
 		AttackDistanceEnd:   1,
 	},
 }
-
-// var UIState uistate.UIState = uistate.Main
-
-// var GameMode gamemode.GameMode = gamemode.Local
 
 var AppState struct {
 	UIState      uistate.UIState
@@ -94,9 +90,97 @@ var UserLogin struct {
 }
 
 var Settings struct {
-	DefaultGameScale int  `json:"DefaultGameScale"`
-	Sound            int  `json:"Sound"`
-	Fullscreen       bool `json:"Fullscreen"`
+	DefaultGameScale int    `json:"DefaultGameScale"`
+	Sound            int    `json:"Sound"`
+	Fullscreen       bool   `json:"Fullscreen"`
+	Language         string `json:"Language"`
+}
+
+var MapSize struct {
+	Width  int
+	Height int
+}
+
+type textLines struct {
+	On               string
+	Off              string
+	WinOnline        string
+	LoseOnline       string
+	WinBlue          string
+	WinRed           string
+	ToMainMenu       string
+	PlayOnline       string
+	PlayOffline      string
+	Settings         string
+	Login            string
+	Register         string
+	Statistics       string
+	Email            string
+	Password         string
+	Language         string
+	GameDefaultScale string
+	Sound            string
+	Fullscreen       string
+	OnlineStatus     string
+	OfflineStatus    string
+	LoginError       string
+	ConnectionError  string
+	RegisterError    string
+}
+
+var LanguageText = map[string]textLines{
+	"Eng": {
+		On:               "On",
+		Off:              "Off",
+		WinOnline:        "You win",
+		LoseOnline:       "You lose",
+		WinBlue:          "Blue team win",
+		WinRed:           "Red team win",
+		ToMainMenu:       "Go to main menu",
+		PlayOnline:       "Play Online",
+		PlayOffline:      "Play Offline",
+		Settings:         "Settings",
+		Login:            "Login",
+		Register:         "Register",
+		Statistics:       "Statistics",
+		Email:            "Email",
+		Password:         "Password",
+		Language:         "Language",
+		GameDefaultScale: "Default Game Scale",
+		Sound:            "Sound",
+		Fullscreen:       "Fullscreen",
+		OnlineStatus:     "Online: ",
+		OfflineStatus:    "Offline",
+		LoginError:       "Wrong email or password",
+		ConnectionError:  "Error on login",
+		RegisterError:    "User is already registered",
+	},
+	"Rus": {
+		On:               "Вкл",
+		Off:              "Выкл",
+		WinOnline:        "Победа",
+		LoseOnline:       "Поражение",
+		WinBlue:          "Синяя команда победила",
+		WinRed:           "Красная команда победила",
+		ToMainMenu:       "В главное меню",
+		PlayOnline:       "Играль по сети",
+		PlayOffline:      "Играть на одном компьютере",
+		Settings:         "Настройки",
+		Login:            "Вход",
+		Register:         "Регистрация",
+		Statistics:       "Статистика",
+		Email:            "Электронная почта",
+		Password:         "Пароль",
+		Language:         "Язык",
+		GameDefaultScale: "Масштабирование игрового поля",
+		Sound:            "Громкость",
+		Fullscreen:       "Полноэкранный режим",
+		OnlineStatus:     "Вход произведён: ",
+		OfflineStatus:    "Вход не произведён",
+		LoginError:       "Неверная почта или пароль",
+		ConnectionError:  "Ошибка при ыходе",
+		RegisterError:    "Пользователь уже зарегистрирован",
+	},
 }
 
 // var World *ecs.World

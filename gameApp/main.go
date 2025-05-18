@@ -27,6 +27,7 @@ func main() {
 		singletons.Settings.DefaultGameScale = 4
 		singletons.Settings.Fullscreen = false
 		singletons.Settings.Sound = 3
+		singletons.Settings.Language = "Eng"
 
 		file, err = os.Create("conf.json")
 		if err != nil {

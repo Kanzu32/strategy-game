@@ -9,4 +9,5 @@ const (
 	Settings
 	Game
 	Login
+	Results
 )
