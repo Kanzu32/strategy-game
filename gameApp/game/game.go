@@ -2,7 +2,6 @@ package game
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 
 	"strategy-game/assets"
@@ -209,8 +208,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.world.Draw(screen)
 	}
 	g.ui.Draw(screen)
-	msg := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
-	ebitenutil.DebugPrint(screen, msg)
+	// msg := fmt.Sprintf("TPS: %0.2f\nFPS: %0.2f", ebiten.ActualTPS(), ebiten.ActualFPS())
+	// ebitenutil.DebugPrint(screen, msg)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {

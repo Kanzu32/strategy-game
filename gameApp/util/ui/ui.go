@@ -689,7 +689,7 @@ func (u *UI) ShowLogin() {
 		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceStandard, Pressed: sliceStandard}),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.MinSize(180, 10)),
 		widget.ButtonOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
-		widget.ButtonOpts.Text("Register", TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+		widget.ButtonOpts.Text(singletons.LanguageText[singletons.Settings.Language].Register, TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
 		widget.ButtonOpts.TextPadding(widget.NewInsetsSimple(20)),
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
 			println("register")

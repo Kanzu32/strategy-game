@@ -152,7 +152,7 @@ var LanguageText = map[string]textLines{
 		OnlineStatus:     "Online: ",
 		OfflineStatus:    "Offline",
 		LoginError:       "Wrong email or password",
-		ConnectionError:  "Error on login",
+		ConnectionError:  "Error connecting to server",
 		RegisterError:    "User is already registered",
 	},
 	"Rus": {
@@ -163,7 +163,7 @@ var LanguageText = map[string]textLines{
 		WinBlue:          "Синяя команда победила",
 		WinRed:           "Красная команда победила",
 		ToMainMenu:       "В главное меню",
-		PlayOnline:       "Играль по сети",
+		PlayOnline:       "Играть по сети",
 		PlayOffline:      "Играть на одном компьютере",
 		Settings:         "Настройки",
 		Login:            "Вход",
@@ -178,7 +178,7 @@ var LanguageText = map[string]textLines{
 		OnlineStatus:     "Вход произведён: ",
 		OfflineStatus:    "Вход не произведён",
 		LoginError:       "Неверная почта или пароль",
-		ConnectionError:  "Ошибка при ыходе",
+		ConnectionError:  "Ошибка при соединении с сервером",
 		RegisterError:    "Пользователь уже зарегистрирован",
 	},
 }

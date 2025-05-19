@@ -203,7 +203,7 @@ func SendStatistics(statName string, value int) {
 	print("Send: ", string(b))
 	n, err := conn.Write(b)
 	if n == 0 || err != nil {
-		panic(err)
+		return
 	}
 }
 
