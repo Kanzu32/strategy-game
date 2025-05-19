@@ -108,8 +108,8 @@ func hashPassword(password string) string {
 func (db *Database) UpdateUserStats(email, password, statName string, value int) error {
 	var account Account
 	err := db.accounts.FindOne(context.TODO(), bson.M{
-		"email":    email,
-		"password": password,
+		"email": email,
+		"hash":  hashPassword(password),
 	}).Decode(&account)
 
 	if err != nil {
