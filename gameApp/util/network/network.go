@@ -30,6 +30,7 @@ type UserData struct {
 
 type GameStartData struct {
 	Team string `json:"team"`
+	Map  string `json:"map"`
 }
 
 type Statistics struct {
@@ -72,7 +73,7 @@ func StartGameRequest() {
 
 func gameResponse() {
 	for {
-		buf := make([]byte, 1024)
+		buf := make([]byte, 40000) // map size
 		n, err := conn.Read(buf)
 		if n == 0 || err != nil { // TODO закрываться здесь
 			return
@@ -98,6 +99,7 @@ func gameResponse() {
 			} else {
 				print("wrong team")
 			}
+			singletons.RawMap = data.Map
 			SendChecksum()
 		case "GAMEDATA":
 			SendChecksum()
@@ -251,15 +253,20 @@ func RegisterRequest(email string, password string) int {
 	// do stuff
 }
 
-func StatisticsRequest(email string, password string) {
+func StatisticsRequest(email string) string {
 	var buf bytes.Buffer
-	json.NewEncoder(&buf).Encode(UserData{email, password})
-	resp, err := http.Post("http://127.0.0.1:8080/api/register", "application/json", &buf)
+	var req struct {
+		Email    string `json:"email"`
+		Language string `json:"language"`
+	}
+	req.Email = email
+	req.Language = singletons.Settings.Language
+	json.NewEncoder(&buf).Encode(req)
+	resp, err := http.Post("http://127.0.0.1:8080/api/statistics", "application/json", &buf)
 	if err != nil {
 		panic(err)
 	}
-
-	println(resp)
-
-	// do stuff
+	b := make([]byte, 1024)
+	resp.Body.Read(b)
+	return string(bytes.Trim(b, "\x00"))
 }

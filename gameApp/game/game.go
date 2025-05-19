@@ -143,8 +143,18 @@ func (g *Game) StartGame() {
 		assets.UtilTileset,
 	})
 
-	InitTileEntities(tilesets, assets.Tilemap)
 	InitStartData()
+	if singletons.AppState.GameMode == gamemode.Local {
+		b, err := os.ReadFile(assets.Tilemap)
+		if err != nil {
+			panic(err)
+		}
+		singletons.RawMap = string(b)
+		InitTileEntities(tilesets)
+	} else if singletons.AppState.GameMode == gamemode.Online {
+		InitTileEntities(tilesets)
+	}
+
 	InitSystems(g.world)
 }
 
@@ -167,7 +177,7 @@ func (g *Game) Update() error {
 		case uistate.Settings:
 			g.ui.ShowSettings()
 		case uistate.Statistics:
-			// TODO
+			g.ui.ShowStatistics()
 		case uistate.Results:
 			g.ui.ShowGameResult()
 		}
@@ -209,17 +219,12 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return singletons.Render.Width, singletons.Render.Height
 }
 
-func InitTileEntities(tilesets tile.TilesetArray, tilemapFilepath string) {
+func InitTileEntities(tilesets tile.TilesetArray) {
 
 	// READ TILEMAP
 
-	contents, err := os.ReadFile(tilemapFilepath)
-	if err != nil {
-		panic(err)
-	}
-
 	var tilemap tile.TilemapJSON
-	err = json.Unmarshal(contents, &tilemap)
+	err := json.Unmarshal([]byte(singletons.RawMap), &tilemap)
 	if err != nil {
 		panic(err)
 	}

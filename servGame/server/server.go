@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 )
 
 type Server struct {
@@ -34,6 +35,7 @@ type GameData struct {
 
 type GameStartData struct {
 	Team string `json:"team"`
+	Map  string `json:"map"`
 }
 
 type Statistics struct {
@@ -54,8 +56,8 @@ func NewServer(database *database.Database) *Server {
 func (s *Server) Start(port string) {
 	http.HandleFunc("/api/register", s.handleRegister)
 	http.HandleFunc("/api/login", s.handleLogin)
-	http.HandleFunc("/api/map", s.handleGetMap)
-	// http.HandleFunc("/api/stats", s.handleUpdateStats)
+	// http.HandleFunc("/api/map", s.handleGetMap)
+	http.HandleFunc("/api/statistics", s.handleGetStatistics)
 	// http.HandleFunc("/api/game/create", s.handleCreateGame)
 	// http.HandleFunc("/api/game/endturn", s.handleEndTurn)
 	// http.HandleFunc("/api/game/state", s.handleGameState)
@@ -140,8 +142,15 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 	defer connBlue.Close()
 	defer connRed.Close()
 
+	// взять в базе данных случайную карту
+	mapStr, err := s.database.GetGameMap()
+	if err != nil {
+		log.Println("Ошибка при получении карты из БД")
+		return
+	}
+
 	// blue ready
-	b, err := json.Marshal(GameStartData{"BLUE"})
+	b, err := json.Marshal(GameStartData{"BLUE", *mapStr})
 	if err != nil {
 		log.Println("Ошибка при сериализации GameStartData")
 		return
@@ -158,7 +167,7 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 	}
 
 	// red ready
-	b, err = json.Marshal(GameStartData{"RED"})
+	b, err = json.Marshal(GameStartData{"RED", *mapStr})
 	if err != nil {
 		log.Println("Ошибка при сериализации GameStartData")
 		return
@@ -366,12 +375,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account := &database.Account{
-		Password: req.Password,
-		Email:    req.Email,
-	}
-
-	err := s.database.Register(account)
+	err := s.database.Register(req.Email, req.Password)
 
 	if err != nil {
 		log.Print(err)
@@ -444,21 +448,56 @@ func respondWithError(w http.ResponseWriter, code int) {
 // 	w.Write([]byte("Stats updated"))
 // }
 
-func (s *Server) handleGetMap(w http.ResponseWriter, r *http.Request) {
-	sessionID := r.URL.Query().Get("session_id")
-	if sessionID == "" {
-		http.Error(w, "session_id is required", http.StatusBadRequest)
+// func (s *Server) handleGetMap(w http.ResponseWriter, r *http.Request) {
+// 	sessionID := r.URL.Query().Get("session_id")
+// 	if sessionID == "" {
+// 		http.Error(w, "session_id is required", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	gameMap, err := s.database.GetGameMap(sessionID)
+// 	if err != nil {
+// 		http.Error(w, "Map not found", http.StatusNotFound)
+// 		return
+// 	}
+
+// 	w.Header().Set("Content-Type", "application/json")
+// 	json.NewEncoder(w).Encode(map[string]interface{}{
+// 		"map_data": gameMap.MapData,
+// 	})
+// }
+
+func (s *Server) handleGetStatistics(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email    string `json:"email"`
+		Language string `json:"language"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Ошибка декодирования запроса: %v", err)
+		respondWithError(w, http.StatusBadRequest)
 		return
 	}
 
-	gameMap, err := s.database.GetGameMap(sessionID)
+	statistics, err := s.database.GetStatistics(req.Email)
+	println("Выдача статистики для пользователя ", statistics.Email)
+	data := ""
+	if req.Language == "Rus" {
+		data = "Всего нанесено урона: " + strconv.Itoa(statistics.TotalDamage) +
+			"\r\nВсего сделано шагов: " + strconv.Itoa(statistics.TotalCells) +
+			"\r\nКоличество побед: " + strconv.Itoa(statistics.WinCount)
+	} else {
+		data = "Total damage: " + strconv.Itoa(statistics.TotalDamage) +
+			"\r\nTotal steps: " + strconv.Itoa(statistics.TotalCells) +
+			"\r\nWin count: " + strconv.Itoa(statistics.WinCount)
+	}
+
 	if err != nil {
-		http.Error(w, "Map not found", http.StatusNotFound)
+		http.Error(w, "Statistics not found", http.StatusNotFound)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"map_data": gameMap.MapData,
-	})
+	w.Header().Set("Content-Type", "text/plain")
+	// json.NewEncoder(w).Encode(data)
+	w.Write([]byte(data))
 }

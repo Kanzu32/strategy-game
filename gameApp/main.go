@@ -11,13 +11,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// TODO WALK
-// TODO GAME UI
-// TODO ATTACK SYSTEM
-// TODO упакоука
-//
-// TODO ...
-
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 

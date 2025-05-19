@@ -960,6 +960,251 @@ func (u *UI) ShowSettings() {
 	u.ui.Container.AddChild(gameScaleLine)
 }
 
+func (u *UI) ShowStatistics() {
+	text := singletons.LanguageText[singletons.Settings.Language].Statistics + ": \r\n\r\n" + network.StatisticsRequest(singletons.UserLogin.Email)
+
+	u.ui.Container = widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewRowLayout(
+				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+				widget.RowLayoutOpts.Padding(widget.Insets{Top: 20, Left: 100, Right: 100, Bottom: 0}),
+				widget.RowLayoutOpts.Spacing(20),
+			),
+		),
+		widget.ContainerOpts.BackgroundImage(sliceIron),
+	)
+
+	u.ui.Container.AddChild(widget.NewButton(
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(54, 54),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionEnd,
+
+				// Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600,
+			}),
+		),
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			println("main")
+			singletons.AppState.UIState = uistate.Main
+			singletons.AppState.StateChanged = true
+		}),
+		widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceIronLight, Pressed: sliceIronLight}),
+		widget.ButtonOpts.Graphic(backButtonImage),
+	))
+
+	textArea := widget.NewContainer(
+		widget.ContainerOpts.Layout(
+			widget.NewRowLayout(
+				widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+				widget.RowLayoutOpts.Padding(widget.Insets{Top: 20, Left: 20, Right: 20, Bottom: 20}),
+				widget.RowLayoutOpts.Spacing(20),
+			),
+		),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+
+				Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600,
+			}),
+			widget.WidgetOpts.MinSize(500, 500),
+		),
+		widget.ContainerOpts.BackgroundImage(slicePaper),
+	)
+
+	textArea.AddChild(widget.NewText(
+		widget.TextOpts.Text(text, TextFace, color.Black),
+		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionCenter),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(100, 80),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600,
+			}),
+		),
+	))
+
+	u.ui.Container.AddChild(textArea)
+
+	// fullscreenLine := widget.NewContainer(
+	// 	widget.ContainerOpts.Layout(
+	// 		widget.NewGridLayout(
+	// 			widget.GridLayoutOpts.Columns(2),
+	// 			widget.GridLayoutOpts.Spacing(0, 0),
+	// 			widget.GridLayoutOpts.Stretch([]bool{true, false}, []bool{false}),
+	// 		),
+	// 	),
+	// 	// widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{})),
+	// 	widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
+	// )
+
+	// fullscreenLine.AddChild(widget.NewText(widget.TextOpts.Text(singletons.LanguageText[singletons.Settings.Language].Fullscreen, TextFace, color.Black)))
+
+	// fullscreenLine.AddChild(widget.NewButton(
+	// 	widget.ButtonOpts.Image(&widget.ButtonImage{Idle: slicePaper, Pressed: slicePaper}),
+	// 	widget.ButtonOpts.Text(fullscreenValueText, TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+	// 	widget.ButtonOpts.TextPosition(widget.TextPositionCenter, widget.TextPositionCenter),
+	// 	widget.ButtonOpts.WidgetOpts(
+	// 		widget.WidgetOpts.MinSize(100, 40),
+	// 		widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+	// 			Position: widget.RowLayoutPositionEnd,
+	// 		})),
+	// 	widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+	// 		singletons.Settings.Fullscreen = !singletons.Settings.Fullscreen
+	// 		ebiten.SetFullscreen(singletons.Settings.Fullscreen)
+	// 		updateSettings()
+	// 		u.ShowSettings()
+	// 	}),
+	// ))
+
+	// u.ui.Container.AddChild(fullscreenLine)
+
+	// languageLine := widget.NewContainer(
+	// 	widget.ContainerOpts.Layout(
+	// 		widget.NewGridLayout(
+	// 			widget.GridLayoutOpts.Columns(2),
+	// 			widget.GridLayoutOpts.Spacing(0, 0),
+	// 			widget.GridLayoutOpts.Stretch([]bool{true, false}, []bool{false}),
+	// 		),
+	// 	),
+	// 	// widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{})),
+	// 	widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
+	// )
+
+	// languageLine.AddChild(widget.NewText(widget.TextOpts.Text(singletons.LanguageText[singletons.Settings.Language].Language, TextFace, color.Black)))
+
+	// languageLine.AddChild(widget.NewButton(
+	// 	widget.ButtonOpts.Image(&widget.ButtonImage{Idle: slicePaper, Pressed: slicePaper}),
+	// 	widget.ButtonOpts.Text(LanguageValueText, TextFace, &widget.ButtonTextColor{Idle: color.Black, Pressed: color.Black}),
+	// 	widget.ButtonOpts.TextPosition(widget.TextPositionCenter, widget.TextPositionCenter),
+	// 	widget.ButtonOpts.WidgetOpts(
+	// 		widget.WidgetOpts.MinSize(100, 40),
+	// 		widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+	// 			Position: widget.RowLayoutPositionEnd,
+	// 		})),
+	// 	widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+	// 		if singletons.Settings.Language == "Eng" {
+	// 			singletons.Settings.Language = "Rus"
+	// 		} else {
+	// 			singletons.Settings.Language = "Eng"
+	// 		}
+	// 		updateSettings()
+	// 		u.ShowSettings()
+	// 	}),
+	// ))
+
+	// u.ui.Container.AddChild(languageLine)
+
+	// soundLine := widget.NewContainer(
+	// 	widget.ContainerOpts.Layout(
+	// 		widget.NewGridLayout(
+	// 			widget.GridLayoutOpts.Columns(4),
+	// 			widget.GridLayoutOpts.Spacing(0, 0),
+	// 			widget.GridLayoutOpts.Stretch([]bool{true, false, false, false}, []bool{false}),
+	// 		),
+	// 	),
+	// 	// widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{})),
+	// 	widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
+	// )
+
+	// soundLine.AddChild(widget.NewText(widget.TextOpts.Text(singletons.LanguageText[singletons.Settings.Language].Sound, TextFace, color.Black)))
+
+	// soundLine.AddChild(widget.NewButton(
+	// 	widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceIronLight, Pressed: sliceIronLight}),
+	// 	widget.ButtonOpts.Graphic(minusButtonImage),
+	// 	widget.ButtonOpts.WidgetOpts(
+	// 		widget.WidgetOpts.MinSize(42, 42),
+	// 		widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+	// 			Position: widget.RowLayoutPositionEnd,
+	// 		})),
+	// 	widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+	// 		if singletons.Settings.Sound > 0 {
+	// 			singletons.Settings.Sound--
+	// 			updateSettings()
+	// 			u.ShowSettings()
+	// 		}
+	// 	}),
+	// ))
+
+	// soundLine.AddChild(widget.NewText(
+	// 	widget.TextOpts.Text(strconv.Itoa(singletons.Settings.Sound), TextFace, color.White),
+	// 	widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+	// 	widget.TextOpts.WidgetOpts(widget.WidgetOpts.MinSize(50, 0)),
+	// ))
+
+	// soundLine.AddChild(widget.NewButton(
+	// 	widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceIronLight, Pressed: sliceIronLight}),
+	// 	widget.ButtonOpts.Graphic(plusButtonImage),
+	// 	widget.ButtonOpts.WidgetOpts(
+	// 		widget.WidgetOpts.MinSize(42, 42),
+	// 		widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+	// 			Position: widget.RowLayoutPositionEnd,
+	// 		})),
+	// 	widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+	// 		if singletons.Settings.Sound < 10 {
+	// 			singletons.Settings.Sound++
+	// 			updateSettings()
+	// 			u.ShowSettings()
+	// 		}
+	// 	}),
+	// ))
+
+	// u.ui.Container.AddChild(soundLine)
+
+	// gameScaleLine := widget.NewContainer(
+	// 	widget.ContainerOpts.Layout(
+	// 		widget.NewGridLayout(
+	// 			widget.GridLayoutOpts.Columns(4),
+	// 			widget.GridLayoutOpts.Spacing(0, 0),
+	// 			widget.GridLayoutOpts.Stretch([]bool{true, false, false, false}, []bool{false}),
+	// 		),
+	// 	),
+	// 	// widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{})),
+	// 	widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{Position: widget.RowLayoutPositionCenter, Stretch: true, MaxWidth: 600})),
+	// )
+
+	// gameScaleLine.AddChild(widget.NewText(widget.TextOpts.Text(singletons.LanguageText[singletons.Settings.Language].GameDefaultScale, TextFace, color.Black)))
+
+	// gameScaleLine.AddChild(widget.NewButton(
+	// 	widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceIronLight, Pressed: sliceIronLight}),
+	// 	widget.ButtonOpts.Graphic(minusButtonImage),
+	// 	widget.ButtonOpts.WidgetOpts(
+	// 		widget.WidgetOpts.MinSize(42, 42),
+	// 		widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+	// 			Position: widget.RowLayoutPositionEnd,
+	// 		})),
+	// 	widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+	// 		if singletons.Settings.DefaultGameScale > 3 {
+	// 			singletons.Settings.DefaultGameScale--
+	// 			updateSettings()
+	// 			u.ShowSettings()
+	// 		}
+	// 	}),
+	// ))
+
+	// gameScaleLine.AddChild(widget.NewText(
+	// 	widget.TextOpts.Text(strconv.Itoa(singletons.Settings.DefaultGameScale), TextFace, color.White),
+	// 	widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+	// 	widget.TextOpts.WidgetOpts(widget.WidgetOpts.MinSize(50, 0)),
+	// ))
+
+	// gameScaleLine.AddChild(widget.NewButton(
+	// 	widget.ButtonOpts.Image(&widget.ButtonImage{Idle: sliceIronLight, Pressed: sliceIronLight}),
+	// 	widget.ButtonOpts.Graphic(plusButtonImage),
+	// 	widget.ButtonOpts.WidgetOpts(
+	// 		widget.WidgetOpts.MinSize(42, 42),
+	// 		widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+	// 			Position: widget.RowLayoutPositionEnd,
+	// 		})),
+	// 	widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+	// 		if singletons.Settings.DefaultGameScale < 10 {
+	// 			singletons.Settings.DefaultGameScale++
+	// 			updateSettings()
+	// 			u.ShowSettings()
+	// 		}
+	// 	}),
+	// ))
+
+	// u.ui.Container.AddChild(gameScaleLine)
+}
+
 func updateSettings() {
 	file, err := os.Create("conf.json")
 	if err != nil {

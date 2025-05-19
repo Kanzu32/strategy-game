@@ -183,6 +183,8 @@ var LanguageText = map[string]textLines{
 	},
 }
 
+var RawMap string
+
 // var World *ecs.World
 
 // var UI ui.UI
