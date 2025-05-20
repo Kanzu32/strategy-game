@@ -25,11 +25,6 @@ type UserStats struct {
 	WinCount    int    `bson:"win_count"`
 }
 
-type GameMap struct {
-	SessionID string      `bson:"session_id"`
-	MapData   interface{} `bson:"map_data"`
-}
-
 type Database struct {
 	client   *mongo.Client
 	accounts *mongo.Collection
