@@ -87,6 +87,7 @@ func gameResponse() {
 
 		switch packet.Type {
 		case "GAMESTART":
+			SendChecksum()
 			var data GameStartData
 			err := json.Unmarshal([]byte(packet.Data), &data)
 			if err != nil {
@@ -100,7 +101,6 @@ func gameResponse() {
 				print("wrong team")
 			}
 			singletons.RawMap = data.Map
-			SendChecksum()
 		case "GAMEDATA":
 			SendChecksum()
 			var data GameData
