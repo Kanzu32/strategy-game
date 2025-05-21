@@ -184,7 +184,7 @@ func SendChecksum() {
 
 // statName: "total_damage", "total_cells"
 func SendStatistics(statName string, value int) {
-	if singletons.AppState.GameMode != gamemode.Online && singletons.Turn.CurrentTurn != singletons.Turn.PlayerTeam {
+	if singletons.AppState.GameMode != gamemode.Online || singletons.AppState.GameMode == gamemode.Online && singletons.Turn.CurrentTurn != singletons.Turn.PlayerTeam {
 		return
 	}
 	b, err := json.Marshal(
