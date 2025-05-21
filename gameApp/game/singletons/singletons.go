@@ -7,6 +7,7 @@ import (
 	"strategy-game/util/data/turn"
 	"strategy-game/util/data/userstatus"
 	"strategy-game/util/ui/uistate"
+	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -184,6 +185,7 @@ var LanguageText = map[string]textLines{
 }
 
 var RawMap string
+var MapMutex sync.Mutex
 
 // var World *ecs.World
 

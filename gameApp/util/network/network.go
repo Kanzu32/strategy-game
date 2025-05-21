@@ -66,7 +66,6 @@ func StartGameRequest() {
 	if n == 0 || err != nil {
 		panic(err)
 	}
-	println("game start req")
 	TeamChan = make(chan teams.Team)
 	go gameResponse()
 }
@@ -87,6 +86,7 @@ func gameResponse() {
 
 		switch packet.Type {
 		case "GAMESTART":
+			singletons.MapMutex.Lock()
 			SendChecksum()
 			var data GameStartData
 			err := json.Unmarshal([]byte(packet.Data), &data)
@@ -101,6 +101,7 @@ func gameResponse() {
 				print("wrong team")
 			}
 			singletons.RawMap = data.Map
+			singletons.MapMutex.Unlock()
 		case "GAMEDATA":
 			SendChecksum()
 			var data GameData
@@ -133,7 +134,6 @@ func EndGame() {
 }
 
 func SendGameData(unitID ecs.Entity, tileID ecs.Entity) {
-	println("start send data")
 	SendChecksum()
 
 	b, err := json.Marshal(GameData{UnitID: unitID, TileID: tileID})
@@ -184,7 +184,7 @@ func SendChecksum() {
 
 // statName: "total_damage", "total_cells"
 func SendStatistics(statName string, value int) {
-	if singletons.AppState.GameMode != gamemode.Online || singletons.Turn.CurrentTurn != singletons.Turn.PlayerTeam {
+	if singletons.AppState.GameMode != gamemode.Online && singletons.Turn.CurrentTurn != singletons.Turn.PlayerTeam {
 		return
 	}
 	b, err := json.Marshal(
@@ -219,11 +219,11 @@ func LoginRequest(email string, password string) int {
 
 	println(resp.Status)
 	if resp.StatusCode == http.StatusUnauthorized {
-		println("неверное имя пользователя или пароль")
+		println("Неверное имя пользователя или пароль")
 	} else if resp.StatusCode == http.StatusOK {
-		println("good log")
+		println("Успешный вход в аккаунт")
 	} else {
-		println("ошибка при входе")
+		println("Ошибка при входе")
 	}
 
 	return resp.StatusCode
@@ -235,17 +235,17 @@ func RegisterRequest(email string, password string) int {
 	json.NewEncoder(&buf).Encode(UserData{email, password})
 	resp, err := http.Post("http://127.0.0.1:8080/api/register", "application/json", &buf)
 	if err != nil {
-		println("ошибка при регистрации")
+		println("Ошибка при регистрации")
 		return http.StatusBadRequest
 	}
 
 	println(resp.Status)
 	if resp.StatusCode == http.StatusConflict {
-		println("пользователь уже зарегистрирован")
+		println("Пользователь уже зарегистрирован")
 	} else if resp.StatusCode == http.StatusOK {
-		println("good reg")
+		println("Успешная регистрация аккаунта и вход")
 	} else {
-		println("ошибка при регистрации")
+		println("Ошибка при регистрации")
 	}
 
 	return resp.StatusCode

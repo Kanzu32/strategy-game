@@ -85,7 +85,7 @@ func InitStartData() {
 		singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: teams.Blue, State: turnstate.Input, IsAttackAllowed: true, IsTurnEnds: false, IsGameEnds: false}
 	} else {
 		team := <-network.TeamChan
-		println("TEAM:", team)
+		// println("TEAM:", team)
 		if team == teams.Blue {
 			singletons.Turn = turn.Turn{CurrentTurn: teams.Blue, PlayerTeam: team, State: turnstate.Input, IsAttackAllowed: true, IsTurnEnds: false, IsGameEnds: false}
 		} else {
@@ -168,7 +168,7 @@ func (g *Game) Update() error {
 		case uistate.Game:
 			g.StartGame()
 			g.ui.ShowGameControls()
-			println("Game start!!!!!!")
+			// println("Game start!!!!!!")
 		case uistate.Main:
 			g.ui.ShowMainMenu()
 		case uistate.Login:
@@ -223,7 +223,10 @@ func InitTileEntities(tilesets tile.TilesetArray) {
 	// READ TILEMAP
 
 	var tilemap tile.TilemapJSON
+	singletons.MapMutex.Lock()
+
 	err := json.Unmarshal([]byte(singletons.RawMap), &tilemap)
+	singletons.MapMutex.Unlock()
 	if err != nil {
 		panic(err)
 	}
@@ -234,7 +237,7 @@ func InitTileEntities(tilesets tile.TilesetArray) {
 
 	singletons.MapSize.Height = 30
 	singletons.MapSize.Width = 30
-	println("Map: ", singletons.MapSize.Width, singletons.MapSize.Height)
+
 	for i := 0; i < groundLayer.Height*groundLayer.Width; i++ {
 
 		// ##GROUND##

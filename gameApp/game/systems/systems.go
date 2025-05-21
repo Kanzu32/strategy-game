@@ -1,7 +1,6 @@
 package systems
 
 import (
-	"log"
 	"math"
 	"strategy-game/game/components"
 	"strategy-game/game/pools"
@@ -94,7 +93,6 @@ func (s *MarkActiveUnitsSystem) Run() { // highlight active units
 			}
 
 			if energyComp.Energy > 0 && teamComp.Team == singletons.Turn.PlayerTeam {
-				println("active unit")
 				pools.ActiveFlag.AddExistingEntity(entity) // highlight units
 			}
 		}
@@ -206,7 +204,6 @@ func (s *MarkActiveTilesSystem) Run() {
 			// } else if class.Class != classes.Glaive && distance != 1 && pools.ActiveFlag.HasEntity(tile) {
 
 			// 	pools.ActiveFlag.RemoveEntity(tile)
-			// 	println("FUCK 2")
 
 			// } else if class.Class == classes.Glaive && (distance != 1 ||
 			// 	distance >= singletons.ClassStats[class.Class].AttackDistanceStart &&
@@ -215,7 +212,6 @@ func (s *MarkActiveTilesSystem) Run() {
 			// 		pools.ActiveFlag.HasEntity(tile) {
 
 			// 	pools.ActiveFlag.RemoveEntity(tile)
-			// 	println("FUCK 3")
 			// }
 
 			//  else if distance != 1 &&
@@ -295,7 +291,6 @@ func (s *MoveSystem) Run() {
 			return
 		}
 
-		println("now we muvin")
 		unitPos, err := pools.PositionPool.Component(unit)
 		if err != nil {
 			panic(err)
@@ -306,7 +301,6 @@ func (s *MoveSystem) Run() {
 			panic(err)
 		}
 
-		println("tween")
 		pools.TweenPool.AddExistingEntity(unit, components.Tween{Animation: tween.CreateTween(tweentype.Linear, 500, (tilePos.X-unitPos.X)*16, (tilePos.Y-unitPos.Y)*16, 0)})
 
 		sprite, err := pools.SpritePool.Component(unit)
@@ -317,7 +311,7 @@ func (s *MoveSystem) Run() {
 		for _, ent := range tiles {
 			pools.TargetObjectFlag.RemoveEntity(ent)
 		}
-		println("move")
+
 		c := components.MoveDirection{X: int8(tilePos.X - unitPos.X), Y: int8(tilePos.Y - unitPos.Y)}
 		pools.MovePool.AddExistingEntity(unit, c)
 
@@ -385,12 +379,12 @@ func (s *MoveSystem) Run() {
 				}
 
 				if occupied.UnitObject != nil && occupied.UnitObject.Equals(unit) && pos.X == unitPos.X && pos.Y == unitPos.Y {
-					println("remove from ", pos.X, " ", pos.Y)
+					// println("remove from ", pos.X, " ", pos.Y)
 					occupied.UnitObject = nil
 				}
 
 				if occupied.UnitObject == nil && pos.X == unitPos.X+int(move.X) && pos.Y == unitPos.Y+int(move.Y) {
-					println("add to ", pos.X, " ", pos.Y)
+					// println("add to ", pos.X, " ", pos.Y)
 					occupied.UnitObject = &unit
 				}
 			}
@@ -475,8 +469,6 @@ func (s *AttackSystem) Run() {
 		panic("More than one targeted objects")
 	} else if len(units) == 1 && len(tiles) == 1 { // если их по одному, то стартуем новую анимацию ИНАЧЕ идём проверять #2#
 
-		println("u can win dis figt")
-
 		unit := units[0]
 		tile := tiles[0]
 
@@ -490,8 +482,6 @@ func (s *AttackSystem) Run() {
 			return
 		}
 		// иначе начинаем анимацию атаки
-
-		println("now we figtin")
 
 		position, err := pools.PositionPool.Component(*occupied.UnitObject)
 		if err != nil {
@@ -708,7 +698,6 @@ func (s *DamageSystem) Run() {
 
 		switch damage.Type {
 		case damagetype.Hit:
-			println("START DAMAGE")
 			spr, err := pools.SpritePool.Component(unit)
 			if err != nil {
 				panic(err)
@@ -753,7 +742,6 @@ func (s *DamageSystem) Run() {
 		}
 
 		if tween.Animation.IsEnded() {
-			println("STOP DAMAGE")
 			spr, err := pools.SpritePool.Component(unit)
 			if err != nil {
 				panic(err)
@@ -828,13 +816,11 @@ func (s *EnergySystem) Run() {
 		}
 
 		if energy.Energy == 0 {
-			println("CUZ U EXAUSTED")
 			singletons.Turn.IsTurnEnds = true
 		}
 	}
 
 	if singletons.Turn.IsTurnEnds {
-		log.Println("SKIPED!!!")
 		// передаём ход другому игроку
 		if singletons.Turn.CurrentTurn == teams.Blue {
 			singletons.Turn.CurrentTurn = teams.Red
@@ -855,7 +841,7 @@ func (s *EnergySystem) Run() {
 		}
 
 		if singletons.AppState.GameMode == gamemode.Online {
-			println("I AM HERE WITH TURNSTATE: ", singletons.Turn.State.String())
+			// println("I AM HERE WITH TURNSTATE: ", singletons.Turn.State.String())
 			if singletons.Turn.State == turnstate.Wait {
 				singletons.Turn.State = turnstate.Input
 			} else {
@@ -888,7 +874,6 @@ func (s *EnergySystem) Run() {
 		}
 		singletons.Turn.IsTurnEnds = false
 		singletons.Turn.IsAttackAllowed = true
-		println("WEARE ACTUALY ENDING")
 	}
 }
 
@@ -988,10 +973,8 @@ func (s *DrawWorldSystem) Run(screen *ebiten.Image) {
 
 		// objects highlight
 		if pools.TargetObjectFlag.HasEntity(objectEntity) {
-			println("Targeted object")
 			opt.ColorScale.Scale(2, 1, 1, 1)
 		} else if pools.ActiveFlag.HasEntity(objectEntity) {
-			println("Active object")
 			opt.ColorScale.Scale(1, 2, 1, 1)
 		}
 

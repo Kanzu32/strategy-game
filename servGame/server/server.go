@@ -66,9 +66,10 @@ func (s *Server) Start(port string) {
 	log.Println("Доступные эндпоинты:")
 	log.Println("POST /api/register - Регистрация нового аккаунта")
 	log.Println("POST /api/login - Авторизация пользователя")
-	log.Println("POST /api/game/create - Создание игровой сессии")
-	log.Println("POST /api/game/endturn - Завершение хода")
-	log.Println("GET /api/game/state - Получение состояния игры")
+	log.Println("GET /api/statistics - Получение статистики")
+	// log.Println("POST /api/game/create - Создание игровой сессии")
+	// log.Println("POST /api/game/endturn - Завершение хода")
+	// log.Println("GET /api/game/state - Получение состояния игры")
 
 	go s.waitForGameConnections()
 
@@ -318,7 +319,6 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 func (s *Server) handleClientInput(conn net.Conn, inputChan chan<- GameData, checksumChan chan<- string, statisticsChan chan<- Statistics) {
 	var packet Packet
 	for {
-		println("ждём ввода")
 		buf := make([]byte, 1024)
 		n, err := conn.Read(buf)
 		if n == 0 || err != nil {
