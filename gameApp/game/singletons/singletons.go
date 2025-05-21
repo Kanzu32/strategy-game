@@ -127,6 +127,7 @@ type textLines struct {
 	LoginError       string
 	ConnectionError  string
 	RegisterError    string
+	EmailError       string
 }
 
 var LanguageText = map[string]textLines{
@@ -155,6 +156,7 @@ var LanguageText = map[string]textLines{
 		LoginError:       "Wrong email or password",
 		ConnectionError:  "Error connecting to server",
 		RegisterError:    "User is already registered",
+		EmailError:       "Wrong email format",
 	},
 	"Rus": {
 		On:               "Вкл",
@@ -181,6 +183,7 @@ var LanguageText = map[string]textLines{
 		LoginError:       "Неверная почта или пароль",
 		ConnectionError:  "Ошибка при соединении с сервером",
 		RegisterError:    "Пользователь уже зарегистрирован",
+		EmailError:       "Неверный формат элекетронной почты",
 	},
 }
 

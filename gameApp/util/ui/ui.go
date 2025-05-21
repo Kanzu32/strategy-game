@@ -567,7 +567,7 @@ func (u *UI) ShowLogin() {
 			DisabledCaret: color.Black,
 		}),
 		widget.TextInputOpts.Validation(func(newInputText string) (bool, *string) {
-			res, err := regexp.Match(`^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$`, []byte(newInputText))
+			res, err := regexp.Match(`^[\w\.]+@([\w-]+\.)+[\w-]{2,4}$`, []byte(newInputText))
 			if err != nil {
 				panic(err)
 			}
@@ -639,8 +639,22 @@ func (u *UI) ShowLogin() {
 			emailInput := u.ui.Container.Children()[1].(*widget.TextInput)
 			passwordInput := u.ui.Container.Children()[2].(*widget.TextInput)
 
-			status := network.LoginRequest(emailInput.GetText(), passwordInput.GetText())
+			res, err := regexp.Match(`^[\w\.]+@([\w-]+\.)+[\w-]{2,4}$`, []byte(emailInput.GetText()))
+			if err != nil {
+				panic(err)
+			}
+
 			statusText := u.ui.Container.Children()[len(u.ui.Container.Children())-1].(*widget.Text)
+			if !res {
+				statusText.Color = color.RGBA{255, 0, 0, 0}
+				statusText.Label = singletons.LanguageText[singletons.Settings.Language].EmailError
+				singletons.UserLogin.Email = ""
+				singletons.UserLogin.Password = ""
+				singletons.UserLogin.Status = userstatus.Offline
+				return
+			}
+
+			status := network.LoginRequest(emailInput.GetText(), passwordInput.GetText())
 
 			switch status {
 			case 200:
