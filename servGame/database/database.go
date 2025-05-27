@@ -1,11 +1,11 @@
 package database
 
 import (
+	"SERV/terminal"
 	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand/v2"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -33,19 +33,19 @@ type Database struct {
 }
 
 func NewDatabase(uri, dbName, usersColl, statsColl, mapsColl string) *Database {
-	log.Printf("Подключение к MongoDB по URI: %s", uri)
+	terminal.Log("Подключение к MongoDB по URI:", uri)
 	clientOptions := options.Client().ApplyURI(uri)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
-		log.Fatalf("Ошибка подключения к MongoDB: %v", err)
+		terminal.LogFatal("Ошибка подключения к MongoDB:", err)
 	}
 
 	err = client.Ping(context.TODO(), nil)
 	if err != nil {
-		log.Fatalf("Не удалось проверить подключение к MongoDB: %v", err)
+		terminal.LogFatal("Не удалось проверить подключение к MongoDB:", err)
 	}
 
-	log.Printf("Успешное подключение к БД %s", dbName)
+	terminal.Log("Успешное подключение к БД", dbName)
 	db := client.Database(dbName)
 
 	return &Database{
@@ -57,7 +57,7 @@ func NewDatabase(uri, dbName, usersColl, statsColl, mapsColl string) *Database {
 }
 
 func (db *Database) Authenticate(email, password string) error {
-	// log.Printf("Аутентификация пользователя: %s", email)
+	// terminal.Logf("Аутентификация пользователя: %s", email)
 	hash := hashPassword(password)
 	filter := bson.M{"email": email}
 	var result Account
@@ -67,32 +67,32 @@ func (db *Database) Authenticate(email, password string) error {
 	}
 
 	if result.Hash != hash {
-		// log.Printf("Неверный пароль для пользователя %s", email)
+		// terminal.Logf("Неверный пароль для пользователя %s", email)
 		return errors.New(fmt.Sprintf("Неверный пароль для пользователя %s", email))
 	}
 
-	// log.Printf("Успешная аутентификация пользователя %s", email)
+	// terminal.Logf("Успешная аутентификация пользователя %s", email)
 	return nil
 }
 
 func (db *Database) Register(email, password string) error {
-	// log.Printf("Регистрация нового пользователя: %s", account.Email)
+	// terminal.Logf("Регистрация нового пользователя: %s", account.Email)
 	filter := bson.M{"email": email}
 	var existing Account
 	err := db.accounts.FindOne(context.TODO(), filter).Decode(&existing)
 	if err == nil {
-		// log.Printf("Пользователь %s уже существует в базе данных", account.Email)
+		// terminal.Logf("Пользователь %s уже существует в базе данных", account.Email)
 
 		return errors.New(fmt.Sprintf("Пользователь %s уже существует в базе данных", email))
 	}
 
 	_, err = db.accounts.InsertOne(context.TODO(), Account{Hash: hashPassword(password), Email: email})
 	if err != nil {
-		// log.Printf("Ошибка при добавлении пользователя в базу данных: %v", err)
+		// terminal.Logf("Ошибка при добавлении пользователя в базу данных: %v", err)
 		return errors.New(fmt.Sprintf("Ошибка при добавлении пользователя в базу данных: %v", err))
 	}
 
-	// log.Printf("Пользователь %s успешно добавлен в базу данных", account.Email)
+	// terminal.Logf("Пользователь %s успешно добавлен в базу данных", account.Email)
 	return nil
 }
 
@@ -132,7 +132,6 @@ func (db *Database) GetGameMap() (*string, error) {
 	var result bson.M
 
 	num, err := db.maps.CountDocuments(context.TODO(), bson.D{})
-	println(num)
 	if err != nil {
 		return nil, err
 	}

@@ -3,9 +3,9 @@ package server
 import (
 	"SERV/database"
 	"SERV/queue"
+	"SERV/terminal"
 	"bytes"
 	"encoding/json"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -46,7 +46,7 @@ type Statistics struct {
 }
 
 func NewServer(database *database.Database) *Server {
-	log.Println("Создание нового сервера")
+	terminal.Log("Создание нового сервера")
 	return &Server{
 		database:  database,
 		userQueue: queue.NewQueue(),
@@ -62,18 +62,18 @@ func (s *Server) Start(port string) {
 	// http.HandleFunc("/api/game/endturn", s.handleEndTurn)
 	// http.HandleFunc("/api/game/state", s.handleGameState)
 
-	log.Printf("Сервер запущен на порте %s", port)
-	log.Println("Доступные эндпоинты:")
-	log.Println("POST /api/register - Регистрация нового аккаунта")
-	log.Println("POST /api/login - Авторизация пользователя")
-	log.Println("GET /api/statistics - Получение статистики")
-	// log.Println("POST /api/game/create - Создание игровой сессии")
-	// log.Println("POST /api/game/endturn - Завершение хода")
-	// log.Println("GET /api/game/state - Получение состояния игры")
+	terminal.Log("Сервер запущен на порте", port)
+	terminal.Log("Доступные эндпоинты:")
+	terminal.Log("POST /api/register - Регистрация нового аккаунта")
+	terminal.Log("POST /api/login - Авторизация пользователя")
+	terminal.Log("GET /api/statistics - Получение статистики")
+	// terminal.Log("POST /api/game/create - Создание игровой сессии")
+	// terminal.Log("POST /api/game/endturn - Завершение хода")
+	// terminal.Log("GET /api/game/state - Получение состояния игры")
 
 	go s.waitForGameConnections()
 
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	terminal.LogFatal(http.ListenAndServe(":"+port, nil))
 
 }
 
@@ -81,16 +81,16 @@ func (s *Server) waitForGameConnections() {
 	listener, err := net.Listen("tcp", ":4545")
 
 	if err != nil {
-		log.Println("Ошибка при инициализации tcp соединения, ", err)
+		terminal.Log("Ошибка при инициализации tcp соединения, ", err)
 		return
 	}
 	defer listener.Close()
-	log.Println("Сервер ожидает подключений для создания игровых сессий...")
+	terminal.Log("Сервер ожидает подключений для создания игровых сессий...")
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Println("Ошибка при попытке подключения пользователя, ", err)
+			terminal.Log("Ошибка при попытке подключения пользователя, ", err)
 			conn.Close()
 			continue
 		}
@@ -103,7 +103,7 @@ func (s *Server) handleGameConnection(conn net.Conn) {
 	n, err := conn.Read(buf)
 
 	if n == 0 || err != nil {
-		log.Println("Ошибка при попытке получения данных от пользователя, ", err)
+		terminal.Log("Ошибка при попытке получения данных от пользователя, ", err)
 		return
 	}
 
@@ -111,31 +111,31 @@ func (s *Server) handleGameConnection(conn net.Conn) {
 
 	err = json.Unmarshal(bytes.Trim(buf, "\x00"), &packet)
 	if err != nil {
-		log.Println("Ошибка при попытке десериализации данных от пользователя, ", err)
+		terminal.Log("Ошибка при попытке десериализации данных от пользователя, ", err)
 		return
 	}
 
-	log.Println("Создано новое соединение с игроком, ", packet.Type, packet.Data)
+	terminal.Log("Создано новое соединение с игроком, ", packet.Type, packet.Data)
 	switch packet.Type {
 	case "GAMESTART":
 		s.userQueue.Add(conn)
-		log.Println("Добавление игрока в очередь, длина очереди: ", s.userQueue.Count())
+		terminal.Log("Добавление игрока в очередь, длина очереди: ", s.userQueue.Count())
 		if s.userQueue.Count() >= 2 {
-			log.Println("Созданно новое лобби")
+			terminal.Log("Созданно новое лобби")
 			conn1, err := s.userQueue.Remove()
 			if err != nil {
-				log.Println("Ошибка при удалении пользователя из очереди")
+				terminal.Log("Ошибка при удалении пользователя из очереди")
 				return
 			}
 			conn2, err := s.userQueue.Remove()
 			if err != nil {
-				log.Println("Ошибка при удалении пользователя из очереди")
+				terminal.Log("Ошибка при удалении пользователя из очереди")
 				return
 			}
 			go s.handleGame(conn1, conn2)
 		}
 	default:
-		println("DEFAULT: ", packet.Type, " ", packet.Data)
+		terminal.Log("Неизвестный игровой пакет пакет:", packet.Type, packet.Data)
 	}
 }
 
@@ -146,45 +146,45 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 	// взять в базе данных случайную карту
 	mapStr, err := s.database.GetGameMap()
 	if err != nil {
-		log.Println("Ошибка при получении карты из БД")
+		terminal.Log("Ошибка при получении карты из БД")
 		return
 	}
 
 	// blue ready
 	b, err := json.Marshal(GameStartData{"BLUE", *mapStr})
 	if err != nil {
-		log.Println("Ошибка при сериализации GameStartData")
+		terminal.Log("Ошибка при сериализации GameStartData")
 		return
 	}
 	b, err = json.Marshal(Packet{"GAMESTART", string(b)})
 	if err != nil {
-		log.Println("Ошибка при сериализации пакета GameStartData")
+		terminal.Log("Ошибка при сериализации пакета GameStartData")
 		return
 	}
 	n, err := connBlue.Write(b)
 	if n == 0 || err != nil {
-		log.Println("Ошибка при передаче пакета GameStartData СИНЕЙ команде")
+		terminal.Log("Ошибка при передаче пакета GameStartData СИНЕЙ команде")
 		return
 	}
 
 	// red ready
 	b, err = json.Marshal(GameStartData{"RED", *mapStr})
 	if err != nil {
-		log.Println("Ошибка при сериализации GameStartData")
+		terminal.Log("Ошибка при сериализации GameStartData")
 		return
 	}
 	b, err = json.Marshal(Packet{"GAMESTART", string(b)})
 	if err != nil {
-		log.Println("Ошибка при сериализации пакета GameStartData")
+		terminal.Log("Ошибка при сериализации пакета GameStartData")
 		return
 	}
 	n, err = connRed.Write(b)
 	if n == 0 || err != nil {
-		log.Println("Ошибка при передаче пакета GameStartData КРАСНОЙ команде")
+		terminal.Log("Ошибка при передаче пакета GameStartData КРАСНОЙ команде")
 		return
 	}
 
-	log.Println("Игровая сессия успешно создана")
+	terminal.Log("Игровая сессия успешно создана")
 	blueInputChan := make(chan GameData)
 	redInputChan := make(chan GameData)
 
@@ -205,66 +205,66 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 		case gameData, ok := <-blueInputChan:
 
 			if ok == false {
-				log.Println("СИНЯЯ команда закрыла соединение, завершение сессии")
+				terminal.Log("СИНЯЯ команда закрыла соединение, завершение сессии")
 				return
 			}
 
 			if gameData.Skip == true {
 				b, err = json.Marshal(Packet{"SKIP", ""})
 				if err != nil {
-					log.Println("Ошибка при сериализации пакета gameData skip для КРАСНОЙ команды")
+					terminal.Log("Ошибка при сериализации пакета gameData skip для КРАСНОЙ команды")
 					return
 				}
 				connRed.Write(b)
-				log.Println("С -> К Пакет: SKIP")
+				terminal.Log("С -> К Пакет: SKIP")
 			} else {
 				b, err := json.Marshal(gameData)
 				if err != nil {
-					log.Println("Ошибка при сериализации gameData для КРАСНОЙ команды")
+					terminal.Log("Ошибка при сериализации gameData для КРАСНОЙ команды")
 					return
 				}
 				b, err = json.Marshal(Packet{"GAMEDATA", string(b)})
 				if err != nil {
-					log.Println("Ошибка при сериализации пакета gameData для КРАСНОЙ команды")
+					terminal.Log("Ошибка при сериализации пакета gameData для КРАСНОЙ команды")
 					return
 				}
 				connRed.Write(b)
-				log.Println("С -> К Пакет: ", gameData.UnitID.Id, gameData.TileID.Id)
+				terminal.Log("С -> К Пакет: ", gameData.UnitID.Id, gameData.TileID.Id)
 			}
 
 		case gameData, ok := <-redInputChan:
 
 			if ok == false {
-				log.Println("КРАСНАЯ команда закрыла соединение, завершение сессии")
+				terminal.Log("КРАСНАЯ команда закрыла соединение, завершение сессии")
 				return
 			}
 
 			if gameData.Skip == true {
 				b, err = json.Marshal(Packet{"SKIP", ""})
 				if err != nil {
-					log.Println("Ошибка при сериализации пакета gameData skip для СИНЕЙ команды")
+					terminal.Log("Ошибка при сериализации пакета gameData skip для СИНЕЙ команды")
 					return
 				}
 				connBlue.Write(b)
-				log.Println("К -> С Пакет: SKIP")
+				terminal.Log("К -> С Пакет: SKIP")
 			} else {
 				b, err := json.Marshal(gameData)
 				if err != nil {
-					log.Println("Ошибка при сериализации gameData для СИНЕЙ команды")
+					terminal.Log("Ошибка при сериализации gameData для СИНЕЙ команды")
 					return
 				}
 				b, err = json.Marshal(Packet{"GAMEDATA", string(b)})
 				if err != nil {
-					log.Println("Ошибка при сериализации пакета gameData для СИНЕЙ команды")
+					terminal.Log("Ошибка при сериализации пакета gameData для СИНЕЙ команды")
 					return
 				}
 				connBlue.Write(b)
-				log.Println("К -> C Пакет: ", gameData.UnitID.Id, gameData.TileID.Id)
+				terminal.Log("К -> C Пакет: ", gameData.UnitID.Id, gameData.TileID.Id)
 			}
 
 		case checksum, ok := <-blueCheckSumChan:
 			if ok == false {
-				log.Println("СИНЯЯ команда закрыла соединение, завершение сессии")
+				terminal.Log("СИНЯЯ команда закрыла соединение, завершение сессии")
 				return
 			}
 
@@ -272,45 +272,45 @@ func (s *Server) handleGame(connBlue net.Conn, connRed net.Conn) {
 				redLastCheckSum = ""
 				// КОНТРОЛЬНЫЕ СУММЫ СОВПАЛИ
 			} else if redLastCheckSum != "" && redLastCheckSum != checksum {
-				log.Println("КОНТРОЛЬНЫЕ СУММЫ НЕ СОВПАЛИ!")
+				terminal.Log("КОНТРОЛЬНЫЕ СУММЫ НЕ СОВПАЛИ!")
 			} else {
 				blueLastCheckSum = checksum
 			}
 		case checksum, ok := <-redCheckSumChan:
 			if ok == false {
-				log.Println("КРАСНАЯ команда закрыла соединение, завершение сессии")
+				terminal.Log("КРАСНАЯ команда закрыла соединение, завершение сессии")
 				return
 			}
 
 			if blueLastCheckSum != "" && blueLastCheckSum == checksum {
 				blueLastCheckSum = ""
 				// КОНТРОЛЬНЫЕ СУММЫ СОВПАЛИ
-				log.Println("Контрольные суммы совпали")
+				terminal.Log("Контрольные суммы совпали")
 			} else if blueLastCheckSum != "" && blueLastCheckSum != checksum {
-				log.Println("КОНТРОЛЬНЫЕ СУММЫ НЕ СОВПАЛИ!")
+				terminal.Log("КОНТРОЛЬНЫЕ СУММЫ НЕ СОВПАЛИ!")
 			} else {
 				redLastCheckSum = checksum
 			}
 
 		case statistics, ok := <-blueStatisticsChan:
 			if ok == false {
-				log.Println("СИНЯЯ команда закрыла соединение, завершение сессии")
+				terminal.Log("СИНЯЯ команда закрыла соединение, завершение сессии")
 				return
 			}
 
 			err := s.database.UpdateUserStats(statistics.Email, statistics.Password, statistics.StatName, statistics.Value)
 			if err != nil {
-				log.Println(err)
+				terminal.Log(err)
 			}
 		case statistics, ok := <-redStatisticsChan:
 			if ok == false {
-				log.Println("КРАСНАЯ команда закрыла соединение, завершение сессии")
+				terminal.Log("КРАСНАЯ команда закрыла соединение, завершение сессии")
 				return
 			}
 
 			err := s.database.UpdateUserStats(statistics.Email, statistics.Password, statistics.StatName, statistics.Value)
 			if err != nil {
-				log.Println(err)
+				terminal.Log(err)
 			}
 		}
 	}
@@ -322,14 +322,14 @@ func (s *Server) handleClientInput(conn net.Conn, inputChan chan<- GameData, che
 		buf := make([]byte, 1024)
 		n, err := conn.Read(buf)
 		if n == 0 || err != nil {
-			log.Println("Ошибка при получении данных от пользователя:", err)
+			terminal.Log("Ошибка при получении данных от пользователя:", err)
 			close(inputChan)
-			log.Println("Канал закрыт")
+			terminal.Log("Канал закрыт")
 			return
 		}
 		err = json.Unmarshal(bytes.Trim(buf, "\x00"), &packet)
 		if err != nil {
-			log.Println("Ошибка при десериализации пакета от пользователя:", err)
+			terminal.Log("Ошибка при десериализации пакета от пользователя:", err)
 			return
 		}
 
@@ -337,7 +337,7 @@ func (s *Server) handleClientInput(conn net.Conn, inputChan chan<- GameData, che
 			var data GameData
 			err := json.Unmarshal([]byte(packet.Data), &data)
 			if err != nil {
-				log.Println("Ошибка при десериализации данных GameData от пользователя:", err)
+				terminal.Log("Ошибка при десериализации данных GameData от пользователя:", err)
 				return
 			}
 			inputChan <- data
@@ -351,26 +351,26 @@ func (s *Server) handleClientInput(conn net.Conn, inputChan chan<- GameData, che
 			var data Statistics
 			err := json.Unmarshal([]byte(packet.Data), &data)
 			if err != nil {
-				log.Println("Ошибка при десериализации данных Statistics от пользователя:", err)
+				terminal.Log("Ошибка при десериализации данных Statistics от пользователя:", err)
 				return
 			}
 			statisticsChan <- data
 		} else {
-			log.Println("Неизвестный тип пакета от пользователя")
+			terminal.Log("Неизвестный тип пакета от пользователя")
 		}
 
 	}
 }
 
 func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
-	log.Println("Обработка запроса на регистрацию")
+	terminal.Log("Обработка запроса на регистрацию")
 	var req struct {
 		Password string `json:"password"`
 		Email    string `json:"email"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Ошибка декодирования запроса: %v", err)
+		terminal.Log("Ошибка декодирования запроса:", err)
 		respondWithError(w, http.StatusBadRequest)
 		return
 	}
@@ -378,36 +378,36 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	err := s.database.Register(req.Email, req.Password)
 
 	if err != nil {
-		log.Print(err)
+		terminal.Log(err)
 		respondWithError(w, http.StatusConflict)
 		return
 	}
 
-	log.Printf("Успешная регистрация пользователя %s", req.Email)
+	terminal.Log("Успешная регистрация пользователя", req.Email)
 	respondWithJSON(w, map[string]string{"status": "success"})
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	log.Println("Обработка запроса на авторизацию")
+	terminal.Log("Обработка запроса на авторизацию")
 	var req struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Ошибка декодирования запроса: %v", err)
+		terminal.Log("Ошибка декодирования запроса:", err)
 		respondWithError(w, http.StatusBadRequest)
 		return
 	}
 
 	err := s.database.Authenticate(req.Email, req.Password)
 	if err != nil {
-		log.Print(err)
+		terminal.Log(err)
 		respondWithError(w, http.StatusUnauthorized)
 		return
 	}
 
-	log.Printf("Успешная авторизация пользователя %s", req.Email)
+	terminal.Log("Успешная авторизация пользователя", req.Email)
 	respondWithJSON(w, map[string]string{"status": "success"})
 }
 
@@ -417,7 +417,7 @@ func respondWithJSON(w http.ResponseWriter, data interface{}) {
 }
 
 func respondWithError(w http.ResponseWriter, code int) {
-	log.Printf("Возвращаемый код ошибки: %d", code)
+	terminal.Log("Возвращаемый код ошибки:", code)
 	// respondWithJSON(w, map[string]string{"error": message})
 	w.WriteHeader(code)
 }
@@ -474,13 +474,13 @@ func (s *Server) handleGetStatistics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Ошибка декодирования запроса: %v", err)
+		terminal.Log("Ошибка декодирования запроса:", err)
 		respondWithError(w, http.StatusBadRequest)
 		return
 	}
 
 	statistics, err := s.database.GetStatistics(req.Email)
-	println("Выдача статистики для пользователя ", statistics.Email)
+	terminal.Log("Выдача статистики для пользователя", statistics.Email)
 	data := ""
 	if req.Language == "Rus" {
 		data = "Всего нанесено урона: " + strconv.Itoa(statistics.TotalDamage) +

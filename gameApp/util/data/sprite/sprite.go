@@ -54,7 +54,7 @@ func (s *Sprite) AnimationProgress() float64 {
 	for _, frame := range s.Animations[s.currentAnimation] {
 		time += frame.Time
 	}
-	return float64(timeToFrames(time)) / float64(s.currentFrame+1)
+	return float64(s.currentFrame) / float64(timeToFrames(time))
 }
 
 func (s *Sprite) Animate() *ebiten.Image {

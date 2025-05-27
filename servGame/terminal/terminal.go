@@ -1,22 +1,36 @@
 package terminal
 
 import (
-	"SERV/server"
 	"log"
+	"os"
+	"time"
 )
 
-type Terminal struct{}
+var fileLoger log.Logger
+var file os.File
 
-func NewTerminal() *Terminal {
-	return &Terminal{}
+func Start() {
+	filepath := "logs/" + time.Now().Format("2006-01-02 15-04-05 MST") + ".txt"
+	file, err := os.Create(filepath)
+	if err != nil {
+		log.Fatalln("Ошибка при создании файла логирования", err)
+	}
+	fileLoger = *log.New(file, "", log.Ldate|log.Ltime)
+	Log("Терминал управления сервером запущен.")
 }
 
-func (t *Terminal) Start(server *server.Server) {
-	log.Println("Терминал управления сервером запущен.")
-	// Логика взаимодействия с администратором
+func Shutdown() {
+	Log("Выключение сервера...")
+	file.Close()
+	os.Exit(0)
 }
 
-func (t *Terminal) Shutdown(server *server.Server) {
-	log.Println("Выключение сервера...")
-	// Логика завершения работы сервера
+func Log(v ...any) {
+	fileLoger.Println(v...)
+	log.Println(v...)
+}
+
+func LogFatal(v ...any) {
+	Log(v...)
+	Shutdown()
 }

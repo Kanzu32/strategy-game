@@ -1,15 +1,9 @@
-package main_test
+package ecs_test
 
 import (
-	"strategy-game/game/singletons"
-	"strategy-game/util/data/sprite"
-	"strategy-game/util/data/tween"
-	"strategy-game/util/data/tween/tweentype"
 	"strategy-game/util/ecs"
 	"strategy-game/util/ecs/psize"
 	"testing"
-
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type AddSystem struct{}
@@ -141,121 +135,91 @@ func TestECS(t *testing.T) {
 	}
 }
 
-func TestTweenCreate(t *testing.T) {
-	animation := tween.CreateTween(tweentype.Linear, 10, 10, 20, 30)
+func TestECSEntityEquality(t *testing.T) {
+	w := ecs.CreateWorld()
+	NumberPool = ecs.CreateComponentPool[NumberComponent](w, psize.Page32)
+	ent1, err := NumberPool.AddNewEntity(NumberComponent{Num: 10})
+	if err != nil {
+		t.Error(err)
+	}
+	ent2, err := NumberPool.AddNewEntity(NumberComponent{Num: 10})
+	if err != nil {
+		t.Error(err)
+	}
 
-	val := animation.GetValue()
-	if val.X != 0 {
+	if ent1.Equals(ent2) {
+		t.Error(err)
+	}
+
+	if !ent1.Equals(ent1) {
 		t.Fail()
 	}
 
-	if val.Y != 0 {
-		t.Fail()
-	}
-
-	if val.Angle != 0 {
-		t.Fail()
-	}
-}
-
-func TestTweenAnimate(t *testing.T) {
-	animation := tween.CreateTween(tweentype.Linear, 10, 10, 20, 30)
-
-	animation.Animate()
-
-	val := animation.GetValue()
-	if val.X == 0 {
-		t.Fail()
-	}
-
-	if val.Y == 0 {
-		t.Fail()
-	}
-
-	if val.Angle == 0 {
+	if !ent2.Equals(ent2) {
 		t.Fail()
 	}
 }
 
-func TestTweenEnd(t *testing.T) {
-	animation := tween.CreateTween(tweentype.Linear, 1, 10, 20, 30)
-
-	for i := 0; i < 100; i++ {
-		animation.Animate()
+func TestECSRemoveFromWorld(t *testing.T) {
+	w := ecs.CreateWorld()
+	NumberPool = ecs.CreateComponentPool[NumberComponent](w, psize.Page32)
+	ent1, err := NumberPool.AddNewEntity(NumberComponent{Num: 10})
+	if err != nil {
+		t.Error(err)
 	}
 
-	val := animation.GetValue()
-	if val.X < 10 {
-		t.Fail()
-	}
+	w.RemoveEntityFromWorld(ent1)
 
-	if val.Y < 20 {
-		t.Fail()
-	}
-
-	if val.Angle < 30 {
-		t.Fail()
-	}
-
-	if !animation.IsEnded() {
+	if NumberPool.EntityCount() != 0 {
 		t.Fail()
 	}
 }
 
-func TestSpriteCreate(t *testing.T) {
-	spr := sprite.NewSprite(ebiten.NewImage(1, 1), 1, 1)
-
-	if spr.Height() != 1 || spr.Width() != 1 {
-		t.Fail()
+func TestECSRemoveFlag(t *testing.T) {
+	w := ecs.CreateWorld()
+	TestFlag = ecs.CreateFlagPool(w, psize.Page32)
+	ent1, err := TestFlag.AddNewEntity()
+	if err != nil {
+		t.Error(err)
 	}
 
-	println(spr.AnimationProgress())
-	if spr.AnimationProgress() != 0.0 {
-		t.Fail()
-	}
-}
+	w.RemoveEntityFromWorld(ent1)
 
-func TestSpriteSetAnimation(t *testing.T) {
-	spr := sprite.NewSprite(ebiten.NewImage(1, 1), 1, 1)
-
-	if spr.Height() != 1 || spr.Width() != 1 {
-		t.Fail()
-	}
-
-	spr.AddAnimation("test", []sprite.Frame{sprite.Frame{N: 1, Time: 1000}})
-
-	spr.SetAnimation("test")
-
-	if spr.AnimationProgress() != 0.0 {
+	if len(TestFlag.Entities()) != 0 {
 		t.Fail()
 	}
 }
 
-func TestSpriteAnimate(t *testing.T) {
-	spr := sprite.NewSprite(ebiten.NewImage(1, 1), 1, 1)
+func TestECSString(t *testing.T) {
+	w := ecs.CreateWorld()
+	NumberPool = ecs.CreateComponentPool[NumberComponent](w, psize.Page32)
+	TestFlag = ecs.CreateFlagPool(w, psize.Page32)
 
-	if spr.Height() != 1 || spr.Width() != 1 {
+	NumberPool.String()
+
+	TestFlag.String()
+}
+
+func TestECSComponentAdd(t *testing.T) {
+	w := ecs.CreateWorld()
+	NumberPool = ecs.CreateComponentPool[NumberComponent](w, psize.Page32)
+	TestFlag = ecs.CreateFlagPool(w, psize.Page32)
+
+	ent, err := TestFlag.AddNewEntity()
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	NumberPool.AddExistingEntity(ent, NumberComponent{Num: 1})
+
+	comp, err := NumberPool.Component(ent)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if comp.Num != 1 {
 		t.Fail()
 	}
 
-	spr.AddAnimation("test", []sprite.Frame{
-		sprite.Frame{N: 0, Time: 1000},
-		sprite.Frame{N: 0, Time: 1000},
-	})
-
-	spr.SetAnimation("test")
-
-	for i := 0; i < 100; i++ {
-		singletons.FrameCount++
-		res := spr.Animate()
-		if res == nil {
-			t.Fail()
-		}
-	}
-
-	if spr.AnimationProgress() == 0.0 {
-		t.Fail()
-	}
-
-	singletons.FrameCount = 0
 }

@@ -3,8 +3,8 @@ package main
 import (
 	"SERV/database"
 	"SERV/server"
+	"SERV/terminal"
 	"bufio"
-	"log"
 	"os"
 	"strings"
 )
@@ -57,14 +57,16 @@ func LoadConfig(filename string) (*Config, error) {
 }
 
 func main() {
-	log.Println("Initializing game server...")
+	terminal.Start()
+
+	terminal.Log("Initializing game server...")
 
 	config, err := LoadConfig("config.txt")
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		terminal.LogFatal("Failed to load config:", err)
 	}
 
-	log.Println("Connecting to database...")
+	terminal.Log("Connecting to database...")
 	database := database.NewDatabase(
 		config.MongoURI,
 		config.DbName,
@@ -73,7 +75,7 @@ func main() {
 		config.CollMaps,
 	)
 
-	log.Println("Starting server...")
+	terminal.Log("Starting server...")
 	server := server.NewServer(database)
 	server.Start(config.Port)
 }
