@@ -1,0 +1,419 @@
+package server_test
+
+import (
+	"SERV/database"
+	"bytes"
+	"encoding/json"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+)
+
+// MockDatabase реализация для тестирования
+type MockDatabase struct {
+	registerFunc      func(email, password string) error
+	authenticateFunc  func(email, password string) error
+	getStatisticsFunc func(email string) (*database.UserStatistics, error)
+	updateStatsFunc   func(email, password, statName string, value int) error
+	getGameMapFunc    func() (*string, error)
+}
+
+func (m *MockDatabase) Register(email, password string) error {
+	return m.registerFunc(email, password)
+}
+
+func (m *MockDatabase) Authenticate(email, password string) error {
+	return m.authenticateFunc(email, password)
+}
+
+func (m *MockDatabase) GetStatistics(email string) (*database.UserStatistics, error) {
+	return m.getStatisticsFunc(email)
+}
+
+func (m *MockDatabase) UpdateUserStats(email, password, statName string, value int) error {
+	return m.updateStatsFunc(email, password, statName, value)
+}
+
+func (m *MockDatabase) GetGameMap() (*string, error) {
+	return m.getGameMapFunc()
+}
+
+func TestNewServer(t *testing.T) {
+	db := &MockDatabase{}
+	s := NewServer(db)
+
+	if s == nil {
+		t.Error("NewServer() returned nil")
+	}
+	if s.database != db {
+		t.Error("Database not set correctly")
+	}
+	if s.userQueue == nil {
+		t.Error("User queue not initialized")
+	}
+}
+
+func TestServer_handleRegister(t *testing.T) {
+	tests := []struct {
+		name           string
+		requestBody    map[string]string
+		dbRegisterFunc func(email, password string) error
+		expectedStatus int
+	}{
+		{
+			name: "successful registration",
+			requestBody: map[string]string{
+				"email":    "test@example.com",
+				"password": "password123",
+			},
+			dbRegisterFunc: func(email, password string) error { return nil },
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name: "duplicate registration",
+			requestBody: map[string]string{
+				"email":    "exists@example.com",
+				"password": "password123",
+			},
+			dbRegisterFunc: func(email, password string) error { return database.ErrUserExists },
+			expectedStatus: http.StatusConflict,
+		},
+		{
+			name: "invalid request",
+			requestBody: map[string]string{
+				"email": "invalid",
+			},
+			dbRegisterFunc: func(email, password string) error { return nil },
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := &MockDatabase{registerFunc: tt.dbRegisterFunc}
+			s := NewServer(db)
+
+			body, _ := json.Marshal(tt.requestBody)
+			req := httptest.NewRequest("POST", "/api/register", bytes.NewReader(body))
+			w := httptest.NewRecorder()
+
+			s.handleRegister(w, req)
+
+			resp := w.Result()
+			if resp.StatusCode != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestServer_handleLogin(t *testing.T) {
+	tests := []struct {
+		name               string
+		requestBody        map[string]string
+		dbAuthenticateFunc func(email, password string) error
+		expectedStatus     int
+	}{
+		{
+			name: "successful login",
+			requestBody: map[string]string{
+				"email":    "test@example.com",
+				"password": "correct",
+			},
+			dbAuthenticateFunc: func(email, password string) error { return nil },
+			expectedStatus:     http.StatusOK,
+		},
+		{
+			name: "invalid credentials",
+			requestBody: map[string]string{
+				"email":    "test@example.com",
+				"password": "wrong",
+			},
+			dbAuthenticateFunc: func(email, password string) error { return database.ErrInvalidCredentials },
+			expectedStatus:     http.StatusUnauthorized,
+		},
+		{
+			name: "invalid request",
+			requestBody: map[string]string{
+				"email": "invalid",
+			},
+			dbAuthenticateFunc: func(email, password string) error { return nil },
+			expectedStatus:     http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := &MockDatabase{authenticateFunc: tt.dbAuthenticateFunc}
+			s := NewServer(db)
+
+			body, _ := json.Marshal(tt.requestBody)
+			req := httptest.NewRequest("POST", "/api/login", bytes.NewReader(body))
+			w := httptest.NewRecorder()
+
+			s.handleLogin(w, req)
+
+			resp := w.Result()
+			if resp.StatusCode != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestServer_handleGetStatistics(t *testing.T) {
+	tests := []struct {
+		name                string
+		requestBody         map[string]string
+		dbGetStatisticsFunc func(email string) (*database.UserStatistics, error)
+		expectedStatus      int
+		expectedResponse    string
+	}{
+		{
+			name: "successful get statistics (English)",
+			requestBody: map[string]string{
+				"email":    "test@example.com",
+				"language": "Eng",
+			},
+			dbGetStatisticsFunc: func(email string) (*database.UserStatistics, error) {
+				return &database.UserStatistics{
+					Email:       "test@example.com",
+					TotalDamage: 100,
+					TotalCells:  50,
+					WinCount:    5,
+				}, nil
+			},
+			expectedStatus:   http.StatusOK,
+			expectedResponse: "Total damage: 100\r\nTotal steps: 50\r\nWin count: 5",
+		},
+		{
+			name: "successful get statistics (Russian)",
+			requestBody: map[string]string{
+				"email":    "test@example.com",
+				"language": "Rus",
+			},
+			dbGetStatisticsFunc: func(email string) (*database.UserStatistics, error) {
+				return &database.UserStatistics{
+					Email:       "test@example.com",
+					TotalDamage: 100,
+					TotalCells:  50,
+					WinCount:    5,
+				}, nil
+			},
+			expectedStatus:   http.StatusOK,
+			expectedResponse: "Всего нанесено урона: 100\r\nВсего сделано шагов: 50\r\nКоличество побед: 5",
+		},
+		{
+			name: "user not found",
+			requestBody: map[string]string{
+				"email":    "nonexistent@example.com",
+				"language": "Eng",
+			},
+			dbGetStatisticsFunc: func(email string) (*database.UserStatistics, error) {
+				return nil, database.ErrUserNotFound
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := &MockDatabase{getStatisticsFunc: tt.dbGetStatisticsFunc}
+			s := NewServer(db)
+
+			body, _ := json.Marshal(tt.requestBody)
+			req := httptest.NewRequest("GET", "/api/statistics", bytes.NewReader(body))
+			w := httptest.NewRecorder()
+
+			s.handleGetStatistics(w, req)
+
+			resp := w.Result()
+			if resp.StatusCode != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
+			}
+
+			if tt.expectedResponse != "" {
+				body := w.Body.String()
+				if body != tt.expectedResponse {
+					t.Errorf("Expected response '%s', got '%s'", tt.expectedResponse, body)
+				}
+			}
+		})
+	}
+}
+
+func TestServer_handleGameConnection(t *testing.T) {
+	db := &MockDatabase{}
+	s := NewServer(db)
+
+	// Создаем mock соединения
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+
+	// Тестируем GAMESTART пакет
+	go func() {
+		packet := Packet{Type: "GAMESTART", Data: "test"}
+		data, _ := json.Marshal(packet)
+		client.Write(data)
+	}()
+
+	go s.handleGameConnection(server)
+
+	// Даем время на обработку
+	time.Sleep(100 * time.Millisecond)
+
+	if s.userQueue.Count() != 1 {
+		t.Errorf("Expected 1 connection in queue, got %d", s.userQueue.Count())
+	}
+}
+
+func TestServer_handleGame(t *testing.T) {
+	db := &MockDatabase{
+		getGameMapFunc: func() (*string, error) {
+			mapStr := "test_map"
+			return &mapStr, nil
+		},
+	}
+	s := NewServer(db)
+
+	// Создаем mock соединения для двух игроков
+	blueClient, blueServer := net.Pipe()
+	redClient, redServer := net.Pipe()
+	defer blueClient.Close()
+	defer blueServer.Close()
+	defer redClient.Close()
+	defer redServer.Close()
+
+	// Запускаем обработку игры в горутине
+	go s.handleGame(blueServer, redServer)
+
+	// Читаем данные, отправленные синей команде
+	buf := make([]byte, 1024)
+	n, _ := blueClient.Read(buf)
+	var bluePacket Packet
+	json.Unmarshal(buf[:n], &bluePacket)
+
+	if bluePacket.Type != "GAMESTART" {
+		t.Errorf("Expected GAMESTART packet for blue team, got %s", bluePacket.Type)
+	}
+
+	// Читаем данные, отправленные красной команде
+	n, _ = redClient.Read(buf)
+	var redPacket Packet
+	json.Unmarshal(buf[:n], &redPacket)
+
+	if redPacket.Type != "GAMESTART" {
+		t.Errorf("Expected GAMESTART packet for red team, got %s", redPacket.Type)
+	}
+}
+
+func TestServer_handleClientInput(t *testing.T) {
+	db := &MockDatabase{}
+	s := NewServer(db)
+
+	// Создаем mock соединения
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+
+	// Каналы для получения данных
+	inputChan := make(chan GameData, 1)
+	checksumChan := make(chan string, 1)
+	statsChan := make(chan Statistics, 1)
+
+	go s.handleClientInput(server, inputChan, checksumChan, statsChan)
+
+	// Тестируем GAMEDATA пакет
+	gameData := GameData{
+		UnitID: Entity{Id: 1},
+		TileID: Entity{Id: 2},
+	}
+	gameDataJson, _ := json.Marshal(gameData)
+	packet := Packet{Type: "GAMEDATA", Data: string(gameDataJson)}
+	data, _ := json.Marshal(packet)
+	client.Write(data)
+
+	select {
+	case received := <-inputChan:
+		if received.UnitID.Id != gameData.UnitID.Id || received.TileID.Id != gameData.TileID.Id {
+			t.Error("Received game data doesn't match sent data")
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for game data")
+	}
+
+	// Тестируем SKIP пакет
+	packet = Packet{Type: "SKIP"}
+	data, _ = json.Marshal(packet)
+	client.Write(data)
+
+	select {
+	case received := <-inputChan:
+		if !received.Skip {
+			t.Error("Skip flag not set")
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for skip packet")
+	}
+
+	// Тестируем CHECKSUM пакет
+	packet = Packet{Type: "CHECKSUM", Data: "test_checksum"}
+	data, _ = json.Marshal(packet)
+	client.Write(data)
+
+	select {
+	case checksum := <-checksumChan:
+		if checksum != "test_checksum" {
+			t.Error("Checksum doesn't match")
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for checksum")
+	}
+
+	// Тестируем STATISTICS пакет
+	stats := Statistics{Email: "test@example.com", StatName: "wins", Value: 1}
+	statsJson, _ := json.Marshal(stats)
+	packet = Packet{Type: "STATISTICS", Data: string(statsJson)}
+	data, _ = json.Marshal(packet)
+	client.Write(data)
+
+	select {
+	case received := <-statsChan:
+		if received.Email != stats.Email || received.StatName != stats.StatName || received.Value != stats.Value {
+			t.Error("Received stats don't match sent stats")
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for statistics")
+	}
+}
+
+func TestServer_waitForGameConnections(t *testing.T) {
+	db := &MockDatabase{}
+	s := NewServer(db)
+
+	// Запускаем в горутине, так как это блокирующая функция
+	go s.waitForGameConnections()
+	time.Sleep(100 * time.Millisecond) // Даем время на запуск
+
+	// Пытаемся подключиться
+	conn, err := net.Dial("tcp", ":4545")
+	if err != nil {
+		t.Fatalf("Failed to connect: %v", err)
+	}
+	defer conn.Close()
+
+	// Отправляем тестовый пакет
+	packet := Packet{Type: "GAMESTART", Data: "test"}
+	data, _ := json.Marshal(packet)
+	conn.Write(data)
+
+	// Даем время на обработку
+	time.Sleep(100 * time.Millisecond)
+
+	if s.userQueue.Count() != 1 {
+		t.Errorf("Expected 1 connection in queue, got %d", s.userQueue.Count())
+	}
+}

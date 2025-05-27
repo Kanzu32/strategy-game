@@ -10,10 +10,12 @@ var fileLoger log.Logger
 var file os.File
 
 func Start() {
+	os.Mkdir("logs", os.ModePerm)
 	filepath := "logs/" + time.Now().Format("2006-01-02 15-04-05 MST") + ".txt"
 	file, err := os.Create(filepath)
 	if err != nil {
 		log.Fatalln("Ошибка при создании файла логирования", err)
+		return
 	}
 	fileLoger = *log.New(file, "", log.Ldate|log.Ltime)
 	Log("Терминал управления сервером запущен.")
