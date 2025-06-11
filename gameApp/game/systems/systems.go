@@ -59,12 +59,14 @@ func (s *TurnSystem) Run() { // highlight active units
 		singletons.Turn.Winner = teams.Red
 
 	} else if isRedAlive == false {
+		println("RED FLAG")
 		singletons.Turn.IsGameEnds = true
 		singletons.Turn.Winner = teams.Blue
 	}
 
 	if singletons.Turn.IsGameEnds {
 		if singletons.Turn.Winner == singletons.Turn.PlayerTeam {
+			println(singletons.Turn.Winner.String(), singletons.Turn.IsGameEnds)
 			network.SendStatistics("win_count", 1)
 		} else {
 			network.SendStatistics("lose_count", 1)

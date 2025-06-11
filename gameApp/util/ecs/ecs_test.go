@@ -1,8 +1,11 @@
 package ecs
 
 import (
+	"image/color"
 	"strategy-game/util/ecs/psize"
 	"testing"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type AddNumSystem struct{}
@@ -59,6 +62,33 @@ func TestECSEntityRemove(t *testing.T) {
 	NumberPool.RemoveEntity(ent)
 
 	if NumberPool.HasEntity(ent) {
+		t.Fail()
+	}
+}
+
+func TestECSEntityString(t *testing.T) {
+	w := CreateWorld()
+	NumberPool = CreateComponentPool[NumberComponent](w, psize.Page32)
+	ent, err := NumberPool.AddNewEntity(NumberComponent{Num: 1})
+	if err != nil {
+		t.Error(err)
+	}
+
+	str := ent.String()
+	if str[len(str)-3:len(str)] != "REG" {
+		t.Fail()
+	}
+
+	nilEnt := Entity{}
+	str = nilEnt.String()
+	if str[len(str)-1] != ' ' {
+		t.Fail()
+	}
+
+	nilEnt.setNil()
+
+	str = nilEnt.String()
+	if str[len(str)-3:len(str)] != "NIL" {
 		t.Fail()
 	}
 }
@@ -339,6 +369,21 @@ func TestComponentPool(t *testing.T) {
 			t.Error("Pool should not contain removed entity")
 		}
 	})
+}
+
+type TestRenderSystem struct{}
+
+func (s *TestRenderSystem) Run(screen *ebiten.Image) {
+	screen.Fill(color.White)
+}
+
+func TestDraw(t *testing.T) {
+	w := CreateWorld()
+	AddRenderSystem(w, &TestRenderSystem{})
+
+	screen := ebiten.NewImage(5, 5)
+
+	w.Draw(screen)
 }
 
 // Вспомогательные функции для тестов

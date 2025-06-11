@@ -163,6 +163,8 @@ func (g *Game) StartGame() {
 // }
 
 func (g *Game) Update() error {
+	g.ui.Update()
+
 	if singletons.AppState.StateChanged {
 		switch singletons.AppState.UIState {
 		case uistate.Game:
@@ -182,8 +184,6 @@ func (g *Game) Update() error {
 		}
 		singletons.AppState.StateChanged = false
 	}
-
-	g.ui.Update()
 
 	if singletons.AppState.UIState == uistate.Game {
 		singletons.FrameCount++

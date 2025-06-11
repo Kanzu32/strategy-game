@@ -78,7 +78,3 @@ type Damage struct {
 	Value uint8
 	Type  damagetype.DamageType
 }
-
-// type StandOn struct {
-// 	Tile *ecs.Entity
-// }

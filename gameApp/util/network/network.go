@@ -40,12 +40,6 @@ type Statistics struct {
 	Value    int    `json:"value"`
 }
 
-// type ServerConnection struct {
-// 	conn     net.Conn
-// 	m        sync.Mutex
-// 	TeamChan chan teams.Team
-// }
-
 var conn net.Conn
 var TeamChan chan teams.Team
 
@@ -184,9 +178,12 @@ func SendChecksum() {
 
 // statName: "total_damage", "total_cells"
 func SendStatistics(statName string, value int) {
+	println("stat try")
 	if singletons.AppState.GameMode != gamemode.Online || singletons.AppState.GameMode == gamemode.Online && singletons.Turn.CurrentTurn != singletons.Turn.PlayerTeam {
+		println("deny")
 		return
 	}
+	println("accept")
 	b, err := json.Marshal(
 		Statistics{Email: singletons.UserLogin.Email,
 			Password: singletons.UserLogin.Password,

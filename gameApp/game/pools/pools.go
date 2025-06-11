@@ -22,8 +22,6 @@ var DirectionPool *ecs.ComponentPool[c.Direction]
 var AttackPool *ecs.ComponentPool[c.Attack]
 var DamagePool *ecs.ComponentPool[c.Damage]
 
-// var StandOnPool *ecs.ComponentPool[c.StandOn]
-
 var TileFlag *ecs.FlagPool
 var WallFlag *ecs.FlagPool
 var SoftFlag *ecs.FlagPool

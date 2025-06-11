@@ -47,7 +47,7 @@ type TilesetArray struct {
 	Data []tilesetJSON
 }
 
-// ID тайлсета с объектами для взаимодействия. (бочки, кактусы, трава...)
+// ID тайлсета с объектами для взаимодействия.
 const ACTIVE_OBJECTS_TILESET = 2
 
 // ID вспомогательного тайлсета
@@ -56,15 +56,10 @@ const UTILITY_TILESET = 9
 // ID вспомогательных тайлов
 const WALL_ID = 1
 
-// SHIELDER, GLAVER, MAGE, ARCHER
-// var BLUE_TEAM = []int{1, 6, 11, 16}
-// var RED_TEAM = []int{2, 7, 12, 17}
-
 var BLUE_TEAM = []int{2, 7, 12, 17}
 var RED_TEAM = []int{3, 8, 13, 18}
 
 // мягкие объекты (трава)
-// var SOFT_OBJECTS = []int{17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 34, 36, 37, 38, 39, 40, 41, 42, 43}
 var SOFT_OBJECTS = []int{18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44}
 
 type tileData struct {
